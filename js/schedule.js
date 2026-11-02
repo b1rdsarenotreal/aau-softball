@@ -19,14 +19,16 @@
 // teams that played fewer weekend games getting a few more so season totals
 // stay close together.
 
-import { isIndependent } from './standings.js?v=20261101202856';
-import { cityPoint, miles } from './geo.js?v=20261101202856';
-import { rng, shuffle, hashStr } from './util.js?v=20261101202856';
+import { isIndependent } from './standings.js?v=20261101205736';
+import { cityPoint, miles } from './geo.js?v=20261101205736';
+import { rng, shuffle, hashStr } from './util.js?v=20261101205736';
 
 export const DEFAULT_REG_WEEKS = 12;
 export const DEFAULT_MIDWEEK_START = 4;
 export const DEFAULT_TOURNEY_WEEKS = 3;
-export const MIDWEEK_FREQ = { half: 'About every other week', every: 'Every week' };
+export const MIDWEEK_FREQ = { half: 'About every other week', most: 'About two weeks in three', every: 'Every week' };
+// Share of midweeks a team plays under each frequency ('every' is all of them).
+export const MIDWEEK_SHARE = { half: 0.6, most: 0.65, every: 1 };
 const TOURNEY_NAMES = ['Classic', 'Invitational', 'Challenge', 'Showcase', 'Kickoff', 'Tournament'];
 export const MIDWEEK = { single: 'One game on Tuesday', doubleheader: 'Tuesday doubleheader', split: 'Tuesday and Wednesday', mixed: 'Mix of both', 'mostly-single': 'Mostly one game, sometimes Tuesday and Wednesday (no doubleheaders)' };
 // Share of midweeks that are a Tuesday–Wednesday pair under 'mostly-single'.
@@ -405,11 +407,12 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   for (let w = midStart; w <= REG - (midSkipLast ? 1 : 0); w++) midWeeks.push(w);
   const freq = season.settings?.midweekFreq ?? 'half';
   const perSet = midweek === 'single' ? 1 : midweek === 'mostly-single' ? 1 + MOSTLY_SINGLE_SPLIT : 2;
-  // Sets each team should play: every week, or about half the weeks with
-  // more for teams that played fewer weekend games (and fewer for more).
+  // Sets each team should play: every week, or a share of the weeks (about
+  // half, or two in three) with more for teams that played fewer weekend
+  // games (and fewer for more).
   const avgWeekend = names.reduce((a, n) => a + played[n], 0) / (names.length || 1);
   const need = Object.fromEntries(names.map(n => [n, freq === 'every' ? midWeeks.length
-    : Math.max(0, Math.min(midWeeks.length, Math.round(midWeeks.length * 0.6 + (avgWeekend - played[n]) / perSet)))]));
+    : Math.max(0, Math.min(midWeeks.length, Math.round(midWeeks.length * (MIDWEEK_SHARE[freq] ?? 0.6) + (avgWeekend - played[n]) / perSet)))]));
   let midNo = 1;
   const satMid = {};
   // Where each team is around a midweek: its home, where it played last

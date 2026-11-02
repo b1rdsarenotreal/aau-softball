@@ -25,7 +25,7 @@ that rule doesn't include this repo.)
   10-run rule after 7, no runner-on-second tiebreaker, about a third as many
   preseason tournaments (`tourneyShare` 0.35, weeks 1–2), 4-game Thu–Sun
   non-conference series (`nonConfSeriesGames`), 3-game conference series,
-  midweek every week from week 2 that is mostly a single Tuesday game and
+  midweek from week 2 in about two weeks of three (`midweekFreq: 'most'`), mostly a single Tuesday game and
   sometimes a Tuesday–Wednesday pair (`midweek: 'mostly-single'`), never a
   midweek doubleheader. The World Series is the College World Series at
   Charles Schwab Field, Omaha; softball's is the Women's College World Series

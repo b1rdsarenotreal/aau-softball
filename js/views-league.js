@@ -1,18 +1,18 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos } from './logo-import.js?v=20261101202856';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText } from './ui.js?v=20261101202856';
-import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261101202856';
-import { ovr, gameRules } from './sim.js?v=20261101202856';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261101202856';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261101202856';
-import { hotSeat, HEAT } from './hotseat.js?v=20261101202856';
-import { setRating } from './ratings.js?v=20261101202856';
-import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261101202856';
-import { MIDWEEK, MIDWEEK_FREQ, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261101202856';
-import { exportLeague, clearLeague } from './store.js?v=20261101202856';
-import { clamp, fmtPct } from './util.js?v=20261101202856';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261101202856';
+import { readAauLogos, applyAauLogos } from './logo-import.js?v=20261101205736';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText } from './ui.js?v=20261101205736';
+import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261101205736';
+import { ovr, gameRules } from './sim.js?v=20261101205736';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261101205736';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261101205736';
+import { hotSeat, HEAT } from './hotseat.js?v=20261101205736';
+import { setRating } from './ratings.js?v=20261101205736';
+import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261101205736';
+import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261101205736';
+import { exportLeague, clearLeague } from './store.js?v=20261101205736';
+import { clamp, fmtPct } from './util.js?v=20261101205736';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261101205736';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -925,7 +925,7 @@ function gamesEstimate(cs) {
   const R = cs.regWeeks ?? 12, start = cs.midweekStart ?? 4, skip = (cs.midweekSkipLast ?? true) ? 1 : 0;
   const tw = Math.min(cs.tourneyWeeks ?? DEFAULT_TOURNEY_WEEKS, R);
   const weeks = Math.max(0, R - skip - start + 1), perSet = { single: 1, 'mostly-single': 1.25 }[cs.midweek ?? 'mixed'] ?? 2;
-  const mid = Math.round(weeks * ((cs.midweekFreq ?? 'half') === 'every' ? 1 : 0.6)) * perSet;
+  const mid = Math.round(weeks * (MIDWEEK_SHARE[cs.midweekFreq ?? 'half'] ?? 0.6)) * perSet;
   // A tournament weekend is 4-5 games instead of 3; teams play about 1.5 of them.
   // 4-game non-conference series add a game in each week before conference play.
   const top = Math.round(R * 3 + ((cs.nonConfSeriesGames ?? 3) - 3) * Math.max(0, R - 9 - tw) + mid + (tw ? 2 : 0));

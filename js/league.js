@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261101202856';
-import { START_YEAR, CONFERENCES, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261101202856';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261101202856';
-import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261101202856';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261101202856';
-import { replayRatings, ensureBase } from './ratings.js?v=20261101202856';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261101202856';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261101202856';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261101202856';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261101205736';
+import { START_YEAR, CONFERENCES, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261101205736';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261101205736';
+import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261101205736';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261101205736';
+import { replayRatings, ensureBase } from './ratings.js?v=20261101205736';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261101205736';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261101205736';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261101205736';
 
 export const SCHEMA_VERSION = 4;
 
@@ -23,7 +23,7 @@ export const SCHEMA_VERSION = 4;
 // Wednesday, never a doubleheader), the College World Series.
 const SIDE_SETTINGS = {
   softball: { innings: 7, runRule: true, tiebreaker: true, mcwsName: "Women's College World Series", mcwsVenue: 'Devon Park', mcwsCity: 'Oklahoma City, Okla.', regWeeks: 13, midweek: 'mixed', midweekFreq: 'half', tourneyWeeks: 3, tourneyShare: 1.5, nonConfSeriesGames: 3, midweekStart: 4 },
-  baseball: { innings: 9, runRule: true, runRuleRuns: 10, runRuleAfter: 7, tiebreaker: false, mcwsName: 'College World Series', mcwsVenue: 'Charles Schwab Field', mcwsCity: 'Omaha, Neb.', regWeeks: 13, midweek: 'mostly-single', midweekFreq: 'every', tourneyWeeks: 2, tourneyShare: 0.35, nonConfSeriesGames: 4, midweekStart: 2 },
+  baseball: { innings: 9, runRule: true, runRuleRuns: 10, runRuleAfter: 7, tiebreaker: false, mcwsName: 'College World Series', mcwsVenue: 'Charles Schwab Field', mcwsCity: 'Omaha, Neb.', regWeeks: 13, midweek: 'mostly-single', midweekFreq: 'most', tourneyWeeks: 2, tourneyShare: 0.35, nonConfSeriesGames: 4, midweekStart: 2 },
 };
 export function defaultSettings(side = 'softball') {
   return {
@@ -51,7 +51,7 @@ export function newLeague({ side = 'softball', name = SIDES[side === 'baseball' 
     schema: SCHEMA_VERSION, name, currentYear: year,
     conferences: JSON.parse(JSON.stringify(conferences)),
     coaches: {}, nextCoachId: 1,
-    seasons: { [year]: season }, side, logoSet: AAU_LOGO_SET,
+    seasons: { [year]: season }, side, logoSet: AAU_LOGO_SET, midweekMost: true,
   };
   ensureIndependent(league);
   for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
@@ -552,6 +552,16 @@ export function migrateLeague(league) {
     const sets = [...Object.values(league.seasons || {}).map(se => se.teams), ...(league.draft ? [league.draft.teams] : [])];
     for (const tset of sets) for (const t of Object.values(tset || {})) if (!t.logoOverride && DEFAULT_LOGOS[t.school]) t.logoOverride = DEFAULT_LOGOS[t.school];
     league.logoSet = AAU_LOGO_SET; league.migrated = true;
+  }
+  // Baseball midweek went from every week to about two weeks in three. The
+  // current schedule is rebuilt if none of its games have been played.
+  if (league.side === 'baseball' && !league.midweekMost) {
+    for (const se of Object.values(league.seasons || {})) if (se.settings?.midweekFreq === 'every') se.settings.midweekFreq = 'most';
+    const cur = league.seasons?.[league.currentYear];
+    if (cur && cur.settings?.midweekFreq === 'most' && !cur.games.some(g => g.type === 'regular' && isFinal(g))) {
+      try { rebuildSchedule(cur, league.seasons[league.currentYear - 1] || null); } catch { /* keep the old schedule */ }
+    }
+    league.midweekMost = true; league.migrated = true;
   }
   const v = league.schema || 1;
   if (v >= SCHEMA_VERSION) return league;

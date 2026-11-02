@@ -822,6 +822,20 @@ runFormat({ regionals: 16, perRegional: 2, wsSize: 8 }, se => {
   const singles = mid.filter(g => !g.series).length, pairs = new Set(mid.filter(g => g.series).map(g => g.series)).size;
   assert.ok(singles > pairs * 2 && pairs > 0, `mostly single midweek games (${singles} singles, ${pairs} Tue-Wed pairs)`);
   assert.ok(Math.min(...mid.map(g => g.week)) === 2);
+  // About two midweeks in three, not every week.
+  const midWeeksOf = t => new Set(mid.filter(g => g.home === t || g.away === t).map(g => g.week)).size;
+  const mwk = Object.keys(sb.teams).map(midWeeksOf), avgMw = mwk.reduce((a, b) => a + b, 0) / mwk.length;
+  const nWeeks = new Set(mid.map(g => g.week)).size;
+  console.log(`baseball midweeks per team: ${Math.min(...mwk)}-${Math.max(...mwk)} of ${nWeeks}, average ${avgMw.toFixed(1)}`);
+  assert.ok(avgMw >= nWeeks * 0.55 && avgMw <= nWeeks * 0.75, 'baseball midweek about two weeks in three');
+  assert.ok(Math.max(...mwk) < nWeeks, 'nobody plays a midweek game every week');
+  // Older baseball saves that played midweek every week switch over, and an
+  // unplayed schedule is rebuilt.
+  { const O = newLeague({ side: 'baseball' }), os = currentSeason(O);
+    os.settings.midweekFreq = 'every'; delete O.midweekMost;
+    migrateLeague(O);
+    assert.equal(currentSeason(O).settings.midweekFreq, 'most');
+    assert.ok(O.midweekMost && O.migrated); }
   // No team plays twice on one day.
   const slot = new Set();
   for (const g of reg) for (const t of [g.home, g.away]) { const k = `${t}|${g.week}|${g.day}|${g.order}`; assert.ok(!slot.has(k), k); slot.add(k); }
