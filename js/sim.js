@@ -7,7 +7,7 @@
 // extra innings.
 // A simulation is only a suggestion — the commissioner reviews and saves it.
 
-import { rng as makeRng } from './util.js?v=20261101205736';
+import { rng as makeRng } from './util.js?v=20261102112534';
 
 // The rules for a season's games, from its settings.
 export function gameRules(settings = {}) {

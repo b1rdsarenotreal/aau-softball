@@ -1,17 +1,17 @@
 :root {
-  /* Night game at the ballpark: scoreboard navy, softball optic yellow, stitch red. */
-  --bg: #edf0f4; --panel: #ffffff; --panel-2: #f5f7fa; --ink: #0f1b2d; --muted: #5b6779;
-  --line: #d9dfe7; --accent: #1d4f91; --accent-ink: #ffffff; --gold: #a8740c; --good: #17784a; --bad: #c8102e;
-  --chip: #e4e9f0; --shadow: 0 1px 0 rgba(15,27,45,.04), 0 2px 10px rgba(15,27,45,.05);
-  --board: #0f1b2d; --board-2: #18294a; --board-ink: #e9eef6; --optic: #e3f04a; --stitch: #c8102e;
+  /* The AAU apps' look: deep court blue, ball gold, coral. */
+  --bg: #eef1f2; --panel: #ffffff; --panel-2: #f5f7f7; --ink: #0d2230; --muted: #566773;
+  --line: #d7dfe2; --accent: #0f5f8a; --accent-ink: #ffffff; --gold: #a8740c; --good: #17784a; --bad: #c8382e;
+  --chip: #e2e9ec; --shadow: 0 1px 0 rgba(13,34,48,.04), 0 2px 10px rgba(13,34,48,.05);
+  --board: #0b3c5d; --board-2: #11507a; --board-ink: #e6f0f5; --optic: #ffcc3d; --stitch: #e2563f;
   --primary: var(--board); --primary-ink: #ffffff;
   --display: 'Big Shoulders Display', 'Arial Narrow', sans-serif; --body: 'Public Sans', system-ui, sans-serif; --mono: 'Public Sans', system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0c1422; --panel: #132036; --panel-2: #182841; --ink: #e8edf5; --muted: #93a2b8;
-    --line: #253756; --accent: #8fb7f2; --chip: #1d2e4b; --shadow: 0 1px 2px rgba(0,0,0,.35);
-    --board: #08101c; --board-2: #14233c; --primary: var(--optic); --primary-ink: #0f1b2d; --good: #5fcf94; --bad: #ff6b7d;
+    --bg: #0a1820; --panel: #10242f; --panel-2: #152c39; --ink: #e6eff3; --muted: #8fa5b1;
+    --line: #22404f; --accent: #7cc4ea; --chip: #1a3442; --shadow: 0 1px 2px rgba(0,0,0,.35);
+    --board: #061620; --board-2: #0f2b3b; --primary: var(--optic); --primary-ink: #0d2230; --good: #5fcf94; --bad: #ff7b6b;
   }
 }
 * { box-sizing: border-box; }
@@ -26,12 +26,12 @@ a { color: var(--accent); }
 .side-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.12); margin: 0 0 10px; }
 .side-switch button { border: 0; background: transparent; color: rgba(255,255,255,.75); font: 700 13px/1 var(--body); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
 .side-switch button:hover { color: #fff; }
-.side-switch button.active { background: #e3f04a; color: #10233f; }
-.side-switch button:focus-visible { outline: 2px solid #e3f04a; outline-offset: 2px; }
+.side-switch button.active { background: #f6f1e3; color: #0b3c5d; }
+.side-switch button:focus-visible { outline: 2px solid #f6f1e3; outline-offset: 2px; }
 .season-picker { padding-bottom: 10px; }
 .season-picker select { background: var(--board-2); border: 1px solid rgba(255,255,255,.12); color: #fff; border-radius: 8px; padding: 4px 10px; font: 700 18px var(--display); }
 .nav { display: flex; gap: 2px; flex-wrap: wrap; margin-left: auto; align-self: flex-end; }
-.nav a { position: relative; color: #a9b6cb; text-decoration: none; padding: 8px 11px 12px; font: 700 17px/1 var(--display); letter-spacing: .01em; }
+.nav a { position: relative; color: #a8c3d2; text-decoration: none; padding: 8px 11px 12px; font: 700 17px/1 var(--display); letter-spacing: .01em; }
 .nav a:hover { color: #fff; }
 .nav a.active { color: #fff; }
 .nav a.active::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 4px; border-radius: 4px 4px 0 0; background: var(--optic); }
@@ -152,8 +152,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .kpi { background: var(--board); color: var(--board-ink); padding: 14px 16px 12px; box-shadow: inset -1px -1px 0 rgba(255,255,255,.08); }
 .kpi .v { font: 800 30px/1.1 var(--display); color: #fff; }
 .kpi .v .team-link, .kpi .v a { color: #fff; }
-.kpi .l { font-size: 12px; color: #93a2b8; margin-top: 2px; }
-.kpi .v .muted { color: #93a2b8; }
+.kpi .l { font-size: 12px; color: #9fbccc; margin-top: 2px; }
+.kpi .v .muted { color: #9fbccc; }
 
 @media (max-width: 640px) {
   .topbar { padding: 10px 12px; }
@@ -703,7 +703,7 @@ tbody tr.clickable:hover td, tbody tr:hover td { background: color-mix(in srgb, 
 .fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fchip .conf-badge, .fchip .conf-logo { flex: none; }
 .fsep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fchip.active { background: var(--optic); border-color: var(--optic); color: #0f1b2d; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fchip.active { background: var(--optic); border-color: var(--optic); color: #0d2230; } }
 
 /* Early-season tournament standings (Schedule page) */
 .tstand { margin: 4px 0 6px; padding: 12px 16px; }
