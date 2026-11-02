@@ -1,0 +1,839 @@
+import { confWeeksFor } from '../js/schedule.js';
+// Logic tests: run with `node tests/logic.test.mjs`
+import assert from 'node:assert/strict';
+import { estimateHE, backfillHitsErrors, applyResult, afterChange, newSeason, pointsLeft } from '../js/league.js';
+import { migrateLeague } from '../js/league.js';
+import { gameVenue, citySiteNames } from '../js/postseason.js';
+import { deleteConference, newLeague, currentSeason, simGames, startNextSeason, addTeam, addConference, renameTeam, beginOffseason, draftRemoveTeam, draftWarnings, coachName, weekName, hireCoach, newCoach, availableCoaches } from '../js/league.js';
+import { bracketology, selectionBoard, setAtLarge, confirmField, mcwsPlaces, mcwsHistory, setConfHost, shownSeed, setConfFormat, postWeeks, wsTeams, ncaaProblems, fieldSize } from '../js/postseason.js';
+import { records, rpi, confStandings, isFinal, regSeasonChamps, regSeasonChamp, quadrants } from '../js/standings.js';
+
+const t0 = Date.now();
+const league = newLeague();
+const s = currentSeason(league);
+assert.equal(Object.keys(s.teams).length, 61);
+assert.equal(league.side, 'softball');
+assert.equal(league.name, 'AAU Softball');
+
+// Home fields: every starting team has one; a save from before they existed
+// gets them on load; a game is at the home team's field.
+assert.ok(Object.values(s.teams).every(t => t.stadium && t.city), 'every team has a home field');
+assert.deepEqual([s.teams.Texas.stadium, s.teams.Texas.city], ['Red and Charline McCombs Field', 'Austin, Texas']);
+{
+  const old = JSON.parse(JSON.stringify(league));
+  for (const t of Object.values(old.seasons[old.currentYear].teams)) { delete t.stadium; delete t.city; }
+  old.seasons[old.currentYear].teams.Texas.stadium = 'My Field';
+  migrateLeague(old);
+  const ot = old.seasons[old.currentYear].teams;
+  assert.equal(ot.UCLA.stadium, 'Easton Stadium');
+  assert.equal(ot.Texas.stadium, 'My Field', 'an edited field is kept');
+  const g = s.games.find(x => x.type === 'regular' && !x.neutral);
+  assert.equal(gameVenue(s, g).stadium, s.teams[g.home].stadium);
+}
+
+// Schedule shape: 13 weeks, early tournaments, weekend series, two-game midweek sets
+const REGW = 13;
+assert.equal(s.regWeeks, REGW);
+const reg = s.games.filter(g => g.type === 'regular');
+assert.equal(Math.max(...reg.map(g => g.week)), REGW);
+assert.ok(reg.every(g => ['Fri', 'Sat', 'Sun', 'Tue', 'Wed', 'Thu'].includes(g.day)), 'games only on weekends, midweek and Thursdays');
+// Conference rivals only meet in conference play; Thursday games are single
+// games for teams without a weekend series, against another conference.
+assert.ok(reg.every(g => g.confGame || s.teams[g.home].conference !== s.teams[g.away].conference), 'no non-conference games between conference rivals');
+const thuGames = reg.filter(g => g.day === 'Thu');
+assert.ok(thuGames.length > 0 && thuGames.every(g => !g.series && !g.confGame), 'Thursday games are single non-conference games');
+// Once a conference starts conference play, its teams play a conference series
+// every weekend (or a Thursday game / weekend series in a bye week).
+const confStart = {};
+for (const g of reg.filter(g => g.confGame)) for (const t of [g.home, g.away]) confStart[t] = Math.min(confStart[t] ?? 99, g.week);
+for (const [t, w0] of Object.entries(confStart)) {
+  const byes = [];
+  for (let w = w0; w <= REGW; w++) if (!reg.some(g => g.week === w && g.day === 'Fri' && g.confGame && (g.home === t || g.away === t))) byes.push(w);
+  assert.ok(byes.length <= 1, `${t} plays conference series every weekend once its conference play starts (${byes})`);
+}
+const lastConf = Object.values(s.teams).map(t => t.conference);
+assert.ok(new Set(reg.filter(g => g.confGame && g.week === REGW).flatMap(g => [s.teams[g.home].conference])).size === new Set(lastConf).size, 'every conference plays on the final weekend');
+const mids = {};
+for (const g of reg.filter(g => g.day === 'Tue' || g.day === 'Wed')) (mids[g.series] ||= []).push(g);
+const midSets = Object.values(mids);
+assert.ok(midSets.every(set => set.length === 2 && set[0].home === set[1].home && set[0].away === set[1].away), 'every midweek set is two games against one opponent');
+const dh = midSets.filter(set => set.every(g => g.day === 'Tue')).length, split = midSets.filter(set => set.some(g => g.day === 'Wed')).length;
+console.log(`midweek sets: ${dh} Tuesday doubleheaders, ${split} Tuesday/Wednesday`);
+assert.ok(dh > 15 && split > 15, 'a mix of doubleheaders and Tue/Wed sets');
+const per = {};
+for (const g of reg) { per[g.home] = (per[g.home] || 0) + 1; per[g.away] = (per[g.away] || 0) + 1; assert.notEqual(g.home, g.away); }
+const counts = Object.values(per);
+const hist={}; counts.forEach(c=>hist[c]=(hist[c]||0)+1); console.log('games-per-team histogram', JSON.stringify(hist));
+console.log('games per team', Math.min(...counts), '-', Math.max(...counts), 'total', reg.length);
+assert.ok(Math.min(...counts) >= 47 && Math.max(...counts) <= 56, 'about 50-55 games per team');
+assert.ok(Math.max(...counts) - Math.min(...counts) <= 6, 'season totals stay close together');
+// Early-season tournaments: weeks 1-3, Thursday to Sunday round robins of 5
+// or 6 teams with no two from the same conference; every team plays one or
+// two; a team in a tournament plays nothing else that week.
+const tg = reg.filter(g => g.tourney);
+const tids = [...new Set(tg.map(g => g.tourney))];
+assert.ok(tids.length >= 6, 'tournaments are scheduled');
+for (const id of tids) {
+  const gs = tg.filter(g => g.tourney === id), ts = [...new Set(gs.flatMap(g => [g.home, g.away]))];
+  assert.ok(ts.length === 5 || ts.length === 6, `${id}: 5 or 6 teams`);
+  assert.equal(new Set(ts.map(t => s.teams[t].conference)).size, ts.length, `${id}: no conference rivals`);
+  assert.equal(gs.length, ts.length * (ts.length - 1) / 2, `${id}: full round robin`);
+  assert.ok(gs.every(g => g.week <= 3 && ['Thu', 'Fri', 'Sat', 'Sun'].includes(g.day) && g.label === gs[0].label), `${id}: Thursday-Sunday in weeks 1-3`);
+  for (const t of ts) assert.equal(reg.filter(g => g.week === gs[0].week && !g.tourney && (g.home === t || g.away === t)).length, 0, `${t} plays only the tournament that week`);
+}
+for (const t of Object.keys(s.teams)) { const k = new Set(tg.filter(g => g.home === t || g.away === t).map(g => g.tourney)).size; assert.ok(k >= 1 && k <= 2, `${t} plays ${k} tournaments`); }
+console.log(`tournaments: ${tids.length}, e.g. ${tg[0].label}`);
+// Midweek about every other week, not every week
+const midPer = Object.keys(s.teams).map(t => new Set(reg.filter(g => g.midweek && (g.home === t || g.away === t)).map(g => g.series)).size);
+assert.ok(Math.max(...midPer) < 8 && midPer.reduce((a, b) => a + b, 0) / midPer.length >= 3.5, 'midweek sets in about half the weeks');
+assert.ok(!reg.some(g => (g.day === 'Tue' || g.day === 'Wed') && (g.week < 4 || g.week === REGW)), 'midweek games run weeks 4-12');
+for (const conf of ['Southwest Conference', 'Pacific-10 Conference', 'Ivy League']) {
+  const teams = Object.values(s.teams).filter(t => t.conference === conf).map(t => t.school);
+  for (const t of teams) {
+    const opps = new Set(reg.filter(g => g.confGame && (g.home === t || g.away === t)).map(g => (g.home === t ? g.away : g.home)));
+    assert.equal(opps.size, teams.length - 1, `${t} plays everyone in the ${conf}`);
+  }
+}
+// No team plays twice on the same day
+const slot = new Set();
+for (const g of reg) for (const t of [g.home, g.away]) { const k = `${t}|${g.week}|${g.day}|${g.order}`; assert.ok(!slot.has(k), k); slot.add(k); }
+for (const g of reg) for (const t of [g.home, g.away]) assert.ok(!reg.some(x => x !== g && x.week === g.week && x.day === g.day && !x.series !== !g.series && (x.home === t || x.away === t) && x.series !== g.series), 'one opponent per day');
+
+// Conference play is never longer than 9 weeks; size sets the start.
+assert.equal(confWeeksFor(12, 11), 9); assert.equal(confWeeksFor(12, 9), 9); assert.equal(confWeeksFor(12, 5), 8); assert.equal(confWeeksFor(14, 13), 9);
+// Bracketology: a full projected field with one bid per conference, even before league play.
+{
+  const B = bracketology(s);
+  assert.equal(B.field.length, 32); assert.equal(B.regionals.length, 8);
+  assert.ok(Object.values(B.autos).every(Boolean), 'every conference has a projected bid');
+  assert.ok(Object.values(B.autos).every(t => B.field.some(f => f.team === t)), 'projected bids are in the field');
+  assert.equal(s.post?.field, undefined, 'bracketology saves nothing');
+}
+// Hand-entered scores: hits and errors estimated from the line and ratings
+{
+  const g = reg.find(x => !isFinal(x));
+  const e = estimateHE(s, g, [0, 2, 0, 0, 1, 0, null], [1, 0, 0, 0, 0, 1, 0]);
+  assert.ok(e.home.H >= 2 && e.away.H >= 1 && e.home.H < 15, 'estimated hits fit the runs');
+  applyResult(g, { homeLine: [0, 0, 0, 0, 0, 0, 0, 1], awayLine: [0, 0, 0, 0, 0, 0, 0, 0], home: { R: 1, H: 0, E: 0 }, away: { R: 0, H: 0, E: 0 } }, 'manual');
+  assert.equal(backfillHitsErrors(s), 1, 'backfill finds the game with no hits or errors');
+  assert.ok(g.homeH + g.homeE + g.awayE >= 0 && g.heEstimated);
+  g.final = false; g.homeR = g.awayR = null; g.homeLine = []; g.awayLine = []; g.source = null; delete g.heEstimated;
+}
+// Conference tiebreakers: pct, head-to-head (restarting for teams still
+// tied), common opponents from the top down, RPI, coin flip.
+{
+  const teams = {};
+  for (const t of 'ABCDE') teams[t] = { school: t, conference: 'X' };
+  for (const t of 'FG') teams[t] = { school: t, conference: 'Y' };
+  const games = [['A', 'B'], ['B', 'C'], ['C', 'A'], ['A', 'D'], ['D', 'B'], ['D', 'C'], ['E', 'A'], ['B', 'E'], ['C', 'E']]
+    .map(([w, l], i) => ({ id: i, type: 'regular', confGame: true, final: true, week: 1, order: i, home: w, away: l, homeR: 2, awayR: 1 }));
+  const mini = { year: 2030, teams, games };
+  const st = confStandings(mini, 'X', records(mini), rpi(mini));
+  assert.deepEqual(st.map(x => x.team), ['D', 'A', 'B', 'C', 'E'], 'three-way tie: common opponent D breaks it, then B beats C head-to-head');
+  assert.equal(st[1].tb.step, 'common'); assert.equal(st[2].tb.step, 'h2h'); assert.equal(st[3].tb.step, 'h2h'); assert.equal(st[0].tb, null);
+  const y = confStandings(mini, 'Y', records(mini), rpi(mini));
+  assert.ok(y.every(x => x.tb.step === 'coin'), 'nothing else separates them: coin flip');
+  assert.deepEqual(confStandings(mini, 'Y', records(mini), rpi(mini)).map(x => x.team), y.map(x => x.team), 'the coin flip is the same every time');
+  // A tie at the top: both teams share the regular-season title; the
+  // tiebreaker winner is the top seed.
+  teams.H = { school: 'H', conference: 'Z' }; teams.I = { school: 'I', conference: 'Z' }; teams.J = { school: 'J', conference: 'Z' };
+  games.push(...[['H', 'I'], ['I', 'H'], ['H', 'J'], ['I', 'J']].map(([w, l], i) => ({ id: 100 + i, type: 'regular', confGame: true, final: true, week: 2, order: i, home: w, away: l, homeR: 3, awayR: 1 })));
+  const zc = regSeasonChamps(mini, 'Z');
+  assert.deepEqual([...zc].sort(), ['H', 'I'], 'tied teams share the regular-season title');
+  assert.equal(regSeasonChamp(mini, 'Z', records(mini, g => g.type === 'regular'), rpi(mini, g => g.type === 'regular')), confStandings(mini, 'Z', records(mini), rpi(mini))[0].team, 'the tiebreaker winner is the top seed');
+  mini.overrides = { regChamps: { Z: 'I' } };
+  assert.deepEqual(regSeasonChamps(mini, 'Z'), ['I'], 'a commissioner override names one champion');
+}
+// Only regional hosts show a national seed.
+{
+  const fake = { settings: { ncaa: { regionals: 4, perRegional: 4, wsSize: 4 } }, post: { field: Array.from({ length: 16 }, (_, i) => ({ team: 'T' + i, seed: i + 1 })) } };
+  assert.equal(shownSeed(fake, 'T3'), 4); assert.equal(shownSeed(fake, 'T4'), null);
+}
+assert.ok(s.polls[0].ranks.length === 15, 'preseason poll is a Top 15');
+assert.equal(Object.keys(s.polls[0].ballots).length, 23, '23 voters each turn in a ballot');
+assert.ok(Object.values(s.polls[0].ballots).every(b => b.length === 15 && new Set(b).size === 15));
+
+// Double elimination for the Big Ten (8 teams) and 'Ivy League' (top 6), single elsewhere
+s.settings.confFormat = { 'Big Ten': 'double', 'Ivy League': 'double' };
+s.settings.confTourney = { 'Big Ten': 8 };
+const pre = Object.fromEntries(Object.entries(s.teams).map(([k, t]) => [k, { ...t.base }]));
+
+// Full season, stopping after the conference tournaments to check them
+simGames(s, g => g.type === 'regular' || g.type === 'conf');
+for (const [conf, ev] of Object.entries(s.post.confT)) {
+  const gs = s.games.filter(g => g.event === ev.id);
+  const titles = gs.filter(g => /Championship$|· Final$/.test(g.label));
+  assert.equal(titles.length, 1, `${conf}: exactly one championship game`);
+  assert.ok(!gs.some(g => /if necessary/i.test(g.label)), `${conf}: no if-necessary game`);
+  const losses = {};
+  for (const g of gs) { const l = g.homeR > g.awayR ? g.away : g.home; losses[l] = (losses[l] || 0) + 1; }
+  if (ev.kind === 'double') {
+    // Everyone but the champion and the title-game loser is out after two losses; nobody loses three times.
+    assert.ok(Object.values(losses).every(n => n <= 2), `${conf}: no team loses three times`);
+    const nonChampLosses = Object.entries(losses).filter(([t]) => t !== ev.champion);
+    assert.ok(nonChampLosses.length >= ev.size - 1, `${conf}: every other team lost`);
+  }
+  // Tournament host: a school in the conference; the host is at home, every other game is at its site (neutral).
+  assert.equal(s.teams[ev.host]?.conference, conf, `${conf}: host is in the conference`);
+  for (const g of gs) assert.ok((g.home === ev.host || g.away === ev.host) ? (!g.neutral && g.home === ev.host) : g.neutral, `${conf}: game site follows the host`);
+  console.log(`${conf} (${ev.kind}, ${ev.size} teams): ${gs.length} games, champion ${ev.champion}, at ${ev.host}`);
+}
+assert.equal(s.post.confT['Big Ten'].kind, 'double');
+assert.equal(s.post.confT['Big Ten'].size, 8);
+assert.equal(s.post.confT['Southwest Conference'].kind, 'single');
+assert.throws(() => setConfFormat(s, 'Southwest Conference', 'double'), /already started/);
+// Selection: automatic qualifiers fixed, at-large picks, confirm, then seeds.
+{
+  assert.equal(s.phase, 'selection');
+  const B = selectionBoard(s);
+  assert.equal(B.autos.length + B.spots, 32); assert.equal(B.board.length, Math.min(B.spots + 10, B.order.length - B.autos.length - B.ineligible.length));
+  for (const t of B.board) { const rr = records(s)[t]; assert.ok(rr.w >= rr.l || B.fill.includes(t), `${t} below .500 on the at-large board`); }
+  assert.equal(s.post.fieldConfirmed, false);
+  const out = B.chosen[B.chosen.length - 1], inn = B.board.find(t => !B.chosen.includes(t));
+  // (With 32 of 61 teams in, every eligible team may already be in.)
+  if (inn) assert.throws(() => setAtLarge(s, inn, true), /spots are taken/);
+  assert.throws(() => setAtLarge(s, B.autos[0], false), /automatic qualifier/);
+  setAtLarge(s, out, false);
+  assert.throws(() => confirmField(s), /Pick/);
+  setAtLarge(s, inn || out, true);
+  if (inn) assert.ok(s.post.field.some(f => f.team === inn) && !s.post.field.some(f => f.team === out));
+  assert.deepEqual(s.post.field.map(f => f.seed), Array.from({ length: 32 }, (_, i) => i + 1));
+  confirmField(s); assert.ok(s.post.fieldConfirmed);
+  assert.throws(() => setAtLarge(s, out, true), /Unlock/);
+  const Q = quadrants(s);
+  const { quadCuts: quadCutsN } = await import('../js/standings.js');
+  assert.deepEqual(quadCutsN(300).home, [30, 75, 160], 'NCAA cut-offs at 300 teams');
+  const q1 = Object.values(Q).filter(x => x.q === 1).length;
+  assert.equal(q1, quadCutsN(Object.keys(s.teams).length).home[0], 'a home game counts as Q1 against the scaled RPI top cut');
+  { const { quadOf, gameLocation, quadScore } = await import('../js/standings.js');
+    assert.deepEqual([quadOf(30, 'home'), quadOf(31, 'home'), quadOf(50, 'neutral'), quadOf(75, 'away'), quadOf(76, 'away'), quadOf(240, 'away'), quadOf(241, 'away')], [1, 2, 1, 1, 2, 3, 4]);
+    assert.equal(gameLocation({ home: 'A', away: 'B' }, 'B'), 'away');
+    assert.equal(gameLocation({ home: 'A', away: 'B', neutral: true }, 'A'), 'neutral');
+    assert.equal(gameLocation({ home: 'A', away: 'B', neutral: true, site: 'B' }, 'B'), 'home', "playing at your own field counts as home");
+    assert.ok(quadScore({ rec: [{ w: 1, l: 0 }, { w: 0, l: 0 }, { w: 0, l: 0 }, { w: 0, l: 0 }] }) > quadScore({ rec: [{ w: 0, l: 0 }, { w: 0, l: 0 }, { w: 0, l: 0 }, { w: 4, l: 1 }] }), 'a Q1 win beats piling up Q4 wins with a Q4 loss');
+    // Committee order follows RPI most of all
+    const { committeeOrder } = await import('../js/postseason.js');
+    const ord = committeeOrder(s), r = rpi(s);
+    const avgGap = ord.slice(0, 16).reduce((a, t, i) => a + Math.abs(r[t].rank - (i + 1)), 0) / 16;
+    console.log('committee order vs RPI rank, top 16: average gap', avgGap.toFixed(1));
+    assert.ok(avgGap < 6, 'committee order stays close to the RPI'); }
+  for (const t of Object.keys(s.teams)) { const g = Q[t].rec.reduce((n, x) => n + x.w + x.l, 0); assert.equal(g, s.games.filter(x => isFinal(x) && (x.home === t || x.away === t)).length, 'quadrant records cover every game'); }
+}
+simGames(s, undefined, { autoLock: true });
+// Regionals keep their if-necessary Game 7 structure
+for (const ev of s.post.regionals) assert.ok(ev.nodes.some(n => n.key === 'G7'), 'regional still has Game 7');
+// Regionals are named after the host's city; older saves named after the
+// school are renamed on load, games included.
+for (const ev of s.post.regionals) assert.equal(ev.name, `${s.teams[ev.host].city.split(',')[0]} Regional`);
+{
+  const se = JSON.parse(JSON.stringify(s)), ev = se.post.regionals[0], city = ev.name;
+  ev.name = `${ev.host} Regional`;
+  for (const g of se.games) if (g.event === ev.id) g.label = g.label.replace(city, ev.name);
+  se.post.regionals[1].name = 'My Regional';
+  citySiteNames(se);
+  assert.equal(ev.name, city);
+  assert.ok(se.games.filter(g => g.event === ev.id).every(g => g.label.startsWith(`${city} · `)), 'game labels renamed');
+  assert.equal(se.post.regionals[1].name, 'My Regional', 'a custom name is kept');
+}
+// "If necessary" games flip home and away from the final they follow (any season so far).
+{
+  let checked = 0;
+  for (const se of Object.values(league.seasons)) for (const ev of [...(se.post?.regionals || []), ...(se.post?.mcwsBrackets || []), ...(se.post?.mcws ? [se.post.mcws] : [])]) {
+    const gm = k => se.games.find(g => g.event === ev.id && g.node === k);
+    const f = gm('G6') || gm('CH'), x = gm('G7') || gm('IF');
+    if (f && x) { checked++; assert.ok(x.home === f.away && x.away === f.home, `${ev.name || ev.id}: if-necessary game flips home and away`); if (ev.host && (x.home === ev.host || x.away === ev.host)) assert.equal(x.site || x.home, ev.host, 'still at the host'); }
+  }
+  console.log('if-necessary games checked:', checked);
+}
+// Regional weekend: Fri G1-G2, Sat G3-G5, Sun final and if-necessary game (after the final).
+for (const ev of s.post.regionals) {
+  const day = Object.fromEntries(ev.nodes.map(n => [n.key, n.day]));
+  assert.deepEqual(day, { G1: 'Fri', G2: 'Fri', G3: 'Sat', G4: 'Sat', G5: 'Sat', G6: 'Sun', G7: 'Sun' }, 'regional days');
+  const gs = s.games.filter(g => g.event === ev.id).sort((a, b) => a.order - b.order);
+  assert.deepEqual(gs.map(g => g.node), ev.nodes.filter(n => n.gameId).sort((a, b) => a.t - b.t).map(n => n.key), 'regional games in order');
+}
+
+// Changing a host rebuilds the games not yet played at the new site.
+{
+  const L2 = newLeague(), s2 = currentSeason(L2);
+  simGames(s2, g => g.type === 'regular');
+  const ev = s2.post.confT['Big Ten'];
+  const other = Object.values(s2.teams).find(t => t.conference === 'Big Ten' && t.school !== ev.host && ev.seeds.includes(t.school)).school;
+  setConfHost(s2, 'Big Ten', other); afterChange(s2);
+  assert.equal(ev.host, other);
+  const gs = s2.games.filter(g => g.event === ev.id);
+  assert.ok(gs.length && gs.every(g => (g.home === other || g.away === other) ? g.home === other && !g.neutral : g.neutral), 'new host is home, others at its site');
+  // Next season picks new hosts, not last year's when there's a choice.
+  const nxt = newSeason(s2.year + 1, JSON.parse(JSON.stringify(s2.teams)), s2.settings, s2);
+  for (const c of Object.keys(s2.confHosts)) assert.notEqual(nxt.confHosts[c], s2.confHosts[c], `${c}: new host next year`);
+}
+
+// Strength of schedule is computed and ranked for every team
+const rr = rpi(s);
+assert.ok(Object.values(rr).every(x => x.sos > 0 && x.sosRank >= 1), 'every team has an SOS rank');
+const sosTop = Object.keys(rr).sort((a, b) => rr[a].sosRank - rr[b].sosRank).slice(0, 3);
+console.log('toughest schedules:', sosTop.map(t => `${t} (${s.teams[t].conference}, opp ${rr[t].oppW}-${rr[t].oppL})`).join('; '));
+
+// Ratings moved with results
+const moved = Object.entries(s.teams).filter(([k, t]) => t.off !== pre[k].off || t.pit !== pre[k].pit || t.def !== pre[k].def).length;
+const drift = Object.entries(s.teams).map(([k, t]) => Math.abs(t.off - pre[k].off) + Math.abs(t.pit - pre[k].pit) + Math.abs(t.def - pre[k].def));
+console.log(`ratings moved for ${moved} of ${Object.keys(s.teams).length} teams; biggest total change ${Math.max(...drift)}`);
+assert.ok(moved > 30, 'ratings change during the season');
+assert.ok(Math.max(...drift) <= 30, 'changes stay modest');
+assert.equal(s.phase, 'complete');
+assert.ok(s.games.every(isFinal));
+for (let w = 1; w <= postWeeks(s).conf; w++) assert.ok(s.polls[w], `poll week ${w}`);
+// Voters differ a little, but not wildly, from the published poll
+const p6 = s.polls[6], r6 = Object.fromEntries(p6.ranks.map((x, i) => [x.team, i + 1]));
+const spread = Object.values(p6.ballots).map(b => b.reduce((acc, t, i) => acc + (r6[t] ? Math.abs(r6[t] - (i + 1)) : 6), 0) / b.length);
+console.log('week 6: ballots differ from the poll by', Math.min(...spread).toFixed(2), 'to', Math.max(...spread).toFixed(2), 'spots on average');
+assert.ok(Math.max(...spread) < 4 && Math.max(...spread) > 0, 'voters disagree a little, not wildly');
+// Poll rules: a ranked team with a losing week never moves up; one that wins every game never drops.
+{
+  const ws = Object.keys(s.polls).filter(k => k !== 'final').map(Number).sort((a, b) => a - b);
+  for (let i = 1; i < ws.length; i++) {
+    const a = s.polls[ws[i - 1]].ranks.map(x => x.team), b = s.polls[ws[i]].ranks.map(x => x.team);
+    const W = {}, Lo = {};
+    for (const g of s.games.filter(g => g.week === ws[i] && isFinal(g))) { const w = g.homeR > g.awayR ? g.home : g.away; const l = w === g.home ? g.away : g.home; W[w] = (W[w] || 0) + 1; Lo[l] = (Lo[l] || 0) + 1; }
+    for (const t of a) {
+      const now = b.includes(t) ? b.indexOf(t) : 99;
+      if ((Lo[t] || 0) > (W[t] || 0)) assert.ok(now >= a.indexOf(t), `week ${ws[i]}: ${t} lost the week but moved up`);
+      if ((W[t] || 0) > 0 && !Lo[t]) assert.ok(now <= a.indexOf(t), `week ${ws[i]}: ${t} won every game but dropped`);
+    }
+  }
+}
+// By the end of the regular season the poll tracks the résumé: the top 5 are all top-12 RPI teams.
+{
+  const lastW = Math.max(...Object.keys(s.polls).filter(k => k !== 'final').map(Number).filter(w => w <= 13));
+  const rr = rpi(s, g => g.week <= lastW);
+  assert.ok(s.polls[lastW].ranks.slice(0, 5).every(x => rr[x.team].rank <= 12), 'late-season poll follows results');
+}
+assert.ok(s.polls.final);
+assert.equal(s.polls.final.ranks[0].team, s.post.champion);
+assert.equal(s.post.field.length, 32);
+assert.equal(new Set(s.post.field.map(f => f.team)).size, 32);
+for (const ev of Object.values(s.post.confT)) assert.ok(s.post.field.some(f => f.team === ev.champion), 'auto bid in field');
+const recs = records(s), r = rpi(s);
+console.log('champion', s.post.champion, recs[s.post.champion].w + '-' + recs[s.post.champion].l, 'runner-up', s.post.runnerUp);
+console.log('MCWS', wsTeams(s).join(', '));
+console.log('final top 5', s.polls.final.ranks.slice(0, 5).map(x => `${x.team} ${x.record}`).join(' | '));
+console.log('Big Ten', confStandings(s, 'Big Ten').map(x => `${x.team} ${x.cw}-${x.cl}`).join(', '));
+const g = s.games.filter(x => x.type === 'regular');
+const avg = k => (g.reduce((a, x) => a + x['home' + k] + x['away' + k], 0) / g.length / 2).toFixed(2);
+console.log('per team per game: R', avg('R'), 'H', avg('H'), 'E', avg('E'), 'run-rule', (g.filter(x => x.runRule).length / g.length).toFixed(3), 'extras', (g.filter(x => x.awayLine.length > 7).length / g.length).toFixed(3));
+for (const x of s.games) { assert.equal(x.homeLine.reduce((a, b) => a + (b || 0), 0), x.homeR); }
+
+// Coaches are people with ids
+assert.equal(coachName(league, s.teams['Texas'].coachId), 'Mike White');
+assert.ok(Object.values(s.teams).every(t => t.coachId), 'every team has a coach');
+{ const L3 = newLeague(); const s3 = currentSeason(L3); s3.teams.Iowa.coachId = newCoach(L3, 'Pat Smith'); s3.teams.Utah.coachId = newCoach(L3, 'Pat Smith'); assert.notEqual(s3.teams.Iowa.coachId, s3.teams.Utah.coachId, 'two coaches with one name stay separate people'); }
+assert.ok(Object.values(s.teams).every(t => !t.staff), 'no pitching staffs');
+assert.ok(s.games.every(g => !g.pitching && !g.wp), 'no pitching stats');
+
+// Offseason: new conference, new team, realignment, a team leaves
+const d = beginOffseason(league);
+assert.equal(d.year, 2031);
+addConference(league, 'Summit', { color: '#123456' });
+addTeam(league, d.teams, { school: 'Oregon State', conference: 'Summit', coachName: 'Pat Casey' });
+// Coaching carousel: Oklahoma hires Purdue's coach; Purdue hires a new one
+const foore = d.teams['Purdue'].coachId, gasso = d.teams['Texas'].coachId;
+assert.equal(hireCoach(d.teams, 'Texas', foore), 'Purdue');
+assert.equal(d.teams['Purdue'].coachId, null);
+assert.ok(draftWarnings(league).some(w => /Purdue/.test(w)), 'vacancy is flagged');
+assert.ok(availableCoaches(league, d.teams).some(c => c.id === gasso), 'Mike White is now available');
+hireCoach(d.teams, 'Purdue', newCoach(league, 'Sam New'));
+for (const t of ['Rochester', 'Brandeis', 'NYU']) d.teams[t].conference = 'Summit';
+d.teams['Buffalo'].conference = 'Southwest Conference';
+draftRemoveTeam(league, 'Carnegie Mellon');
+assert.ok(!draftWarnings(league).some(w => /coach|Summit/i.test(w)), draftWarnings(league).join(' | '));
+// Offseason rating points: earned from results plus luck, spread automatically, adjustable.
+{
+  const withDev = Object.values(d.teams).filter(t => t.dev);
+  assert.ok(withDev.length >= 40, 'returning teams get rating points');
+  const { devTotal, syncCoachBonus, coachPrestige, coachBonus, coachResumes } = await import('../js/league.js');
+  syncCoachBonus(league);
+  assert.ok(withDev.every(t => pointsLeft(t) === devTotal(t)), 'points start unplaced');
+  { const { placeRemaining, clearPoints } = await import('../js/league.js');
+    const u = withDev.find(x => x.dev.pts > 2 && x.off < 90 && x.pit < 90 && x.def < 90);
+    if (u) { u.off += 1; placeRemaining(u, Math.random); assert.equal(pointsLeft(u), 0, 'auto places the rest'); assert.ok(u.off >= u.dev.start.off + 1, 'keeps manual placement');
+      clearPoints(u); assert.equal(pointsLeft(u), devTotal(u), 'reset'); } }
+  // Coach prestige: winning, NCAA trips and titles raise it; a new hire counts double.
+  assert.equal(coachPrestige(null), 45);
+  const avgC = coachPrestige({ w: 150, l: 150, seasons: 5, ncaa: 2, mcws: 0, titles: 0 }), star = coachPrestige({ w: 230, l: 70, seasons: 5, ncaa: 5, mcws: 3, titles: 2 });
+  assert.ok(avgC >= 45 && avgC <= 55 && star >= 85, `prestige: average ${avgC}, star ${star}`);
+  assert.ok(coachPrestige({ w: 50, l: 10, seasons: 1, ncaa: 1, mcws: 1, titles: 1 }) < star, 'one great season counts for less than a long run');
+  assert.ok(coachBonus(star, true) > coachBonus(star, false) && coachBonus(star, false) > 0 && coachBonus(30, true) < 0);
+  // Hiring the most prestigious coach at a struggling team raises its points.
+  { const res = coachResumes(league), best = Object.keys(res).sort((a, b) => coachPrestige(res[b]) - coachPrestige(res[a]))[0];
+    const weak = withDev.filter(t => t.coachId !== best).sort((a, b) => a.dev.pts - b.dev.pts)[0];
+    const before = devTotal(weak), was = weak.coachId, from = Object.values(d.teams).find(t => t.coachId === best);
+    hireCoach(d.teams, weak.school, best); syncCoachBonus(league);
+    const amp = 0.8 + weak.dev.prestige / 250;
+    assert.equal(weak.dev.cb, Math.round(coachBonus(coachPrestige(res[best]), true) * weak.dev.fit * amp), 'a new hire: prestige x 1.5, times his fit, a bit more at a big program');
+    assert.ok(coachBonus(coachPrestige(res[best]), true) * amp > coachBonus(coachPrestige(res[was]), false), `${weak.school} expects more from the big name`);
+    assert.ok(weak.dev.coachNew && weak.dev.fit > -1 && weak.dev.fit < 2);
+    if (from) assert.equal(from.dev.cb, -1, 'the job he left is open, which costs a point');
+    hireCoach(d.teams, weak.school, was); if (from) hireCoach(d.teams, from.school, best); syncCoachBonus(league);
+    assert.equal(devTotal(weak), before, 'hiring the old coach back restores the points'); }
+  // Program prestige: recent success counts most; the champion is well above average.
+  { const { programPrestiges, programBonus, hireFit } = await import('../js/league.js');
+    const pp = programPrestiges(league, d.teams), vals = Object.values(pp).sort((a, b) => a - b), med = vals[vals.length >> 1];
+    assert.ok(pp[s.post.champion] > med + 10, `champion prestige ${pp[s.post.champion]} vs median ${med}`);
+    assert.ok(programBonus(90) > 0 && programBonus(50) === 0 && programBonus(15) < 0);
+    assert.ok(withDev.every(t => t.dev.pb === programBonus(t.dev.prestige)), 'program points come from prestige');
+    assert.equal(hireFit(2020, 'A', 'c1'), hireFit(2020, 'A', 'c1'), 'a hire\'s fit is fixed');
+    const fits = Array.from({ length: 400 }, (_, i) => hireFit(2020, 'S' + i, 'c'));
+    assert.ok(fits.some(f => f < 0.3) && fits.some(f => f > 1.4), 'some hires flop, some take off'); }
+  const champ = d.teams[s.post.champion];
+  const recs = records(s), byWp = withDev.filter(t => recs[t.school]).sort((a, b) => recs[b.school].w / (recs[b.school].w + recs[b.school].l) - recs[a.school].w / (recs[a.school].w + recs[a.school].l));
+  const avg = l => l.reduce((n, t) => n + t.dev.pts, 0) / l.length;
+  console.log('dev points: best third avg', avg(byWp.slice(0, 15)).toFixed(1), 'worst third avg', avg(byWp.slice(-15)).toFixed(1), 'champion', champ.dev.pts);
+  const t = withDev.find(x => x.off < 95), before = pointsLeft(t);
+  t.off += 1; assert.equal(pointsLeft(t), before - 1, 'raising a rating spends a point');
+  t.off -= 1;
+}
+assert.ok(s.teams['Carnegie Mellon'], 'history keeps the team');
+const s2 = startNextSeason(league);
+assert.equal(s2.year, 2031);
+assert.ok(!league.draft);
+assert.ok(s2.teams['Oregon State'] && !s2.teams['Carnegie Mellon']);
+assert.equal(s2.teams['Buffalo'].conference, 'Southwest Conference');
+assert.equal(coachName(league, s2.teams['Oregon State'].coachId), 'Pat Casey');
+assert.equal(coachName(league, s2.teams['Texas'].coachId), 'Magali Frezzotti');
+// New schedule each season, with conference series flipping home and away
+assert.ok(s2.games.some(g => g.type === 'regular') && s2.games.every(g => !g.final || g.type !== 'regular' || true));
+const host16 = new Map(s.games.filter(g => g.type === 'regular' && g.confGame).map(g => [[g.home, g.away].sort().join('|'), g.home]));
+let flipped = 0, same = 0;
+for (const g of s2.games.filter(g => g.type === 'regular' && g.confGame && g.day === 'Fri')) {
+  const h = host16.get([g.home, g.away].sort().join('|'));
+  if (h) (h === g.home ? same++ : flipped++);
+}
+console.log(`conference series that met in both years: ${flipped} flipped, ${same} same host`);
+assert.equal(same, 0, 'every repeat conference series switches sites');
+const summit = Object.values(s2.teams).filter(t => t.conference === 'Summit').map(t => t.school);
+assert.equal(summit.length, 4);
+for (const t of summit) {
+  const opps = new Set(s2.games.filter(g => g.confGame && (g.home === t || g.away === t)).map(g => (g.home === t ? g.away : g.home)));
+  assert.equal(opps.size, 3, `${t} plays its new Summit rivals`);
+}
+assert.ok(s2.games.some(g => g.home === 'Oregon State' || g.away === 'Oregon State'));
+assert.ok(s2.carryPoll);
+renameTeam(league, s2, 'Oregon State', 'Oregon St.');
+assert.ok(s2.teams['Oregon St.']);
+simGames(s2, undefined, { autoLock: true });
+assert.equal(s2.phase, 'complete');
+console.log('2031 champion', s2.post.champion);
+
+// Poll size from the settings
+s2.settings.pollSize = 20;
+// ---------- Tournament formats ----------
+// Each season after this one uses a different format set in the editor.
+assert.deepEqual(ncaaProblems({ regionals: 4, perRegional: 4, wsSize: 8 }, 46).length, 1, 'an 8-team MCWS needs 8 or 16 regionals');
+assert.ok(ncaaProblems({ regionals: 16, perRegional: 4, wsSize: 8 }, 46).some(x => /only 46 teams/.test(x)), 'too many qualifiers');
+function runFormat(cfg, check) {
+  currentSeason(league).settings.ncaa = cfg;
+  beginOffseason(league);
+  const se = startNextSeason(league);
+  assert.equal(se.regWeeks, 13);
+  se.settings.confFormat = {};
+  simGames(se, undefined, { autoLock: true });
+  assert.equal(se.phase, 'complete', `${se.year} finishes`);
+  assert.ok(se.games.every(isFinal), `${se.year}: every game played`);
+  assert.equal(se.post.field.length, fieldSize(cfg));
+  assert.equal(new Set(se.post.field.map(f => f.team)).size, fieldSize(cfg));
+  assert.equal(se.post.regionals.length, cfg.regionals);
+  assert.ok(se.post.regionals.every(ev => ev.seeds.length === cfg.perRegional && ev.champion));
+  assert.equal(wsTeams(se).length, cfg.wsSize);
+  assert.equal(se.polls.final.ranks[0].team, se.post.champion);
+  const W = postWeeks(se);
+  const weeks = [...new Set(se.games.filter(g => g.type !== 'regular').map(g => weekName(g.week, se)))];
+  console.log(`${se.year}: ${fieldSize(cfg)} qualifiers, ${cfg.regionals}×${cfg.perRegional}, MCWS ${cfg.wsSize} → champion ${se.post.champion} over ${se.post.runnerUp} · weeks: ${weeks.join(', ')}`);
+  assert.equal(se.polls[1].ranks.length, 20, 'a Top 20 after changing the setting');
+  check(se, W);
+}
+// 8-team MCWS: Bracket A and B, then a best-of-three final
+runFormat({ regionals: 8, perRegional: 4, wsSize: 8 }, (se, W) => {
+  const [A, B] = se.post.mcwsBrackets;
+  const q = se.post.regionals.map(ev => ev.champion);
+  assert.deepEqual(A.seeds, [q[0], q[3], q[4], q[7]], 'Bracket A: paths 1, 4, 5, 8');
+  assert.deepEqual(B.seeds, [q[1], q[2], q[5], q[6]], 'Bracket B: paths 2, 3, 6, 7');
+  assert.ok(A.champion && B.champion);
+  assert.deepEqual([...se.post.mcwsFinals.seeds].sort(), [A.champion, B.champion].sort());
+  const fin = se.games.filter(g => g.event === 'ws-F');
+  assert.ok(fin.length >= 2 && fin.length <= 3, 'finals are best of three');
+  assert.ok(fin.every(g => g.week === W.finals));
+  assert.ok(!se.post.supers, 'no super regionals');
+  assert.ok([A.champion, B.champion].includes(se.post.champion));
+});
+// Super regionals into a 4-team MCWS, with 3-team regionals
+runFormat({ regionals: 8, perRegional: 3, wsSize: 4 }, (se, W) => {
+  assert.equal(se.post.supers.length, 4);
+  for (const ev of se.post.supers) {
+    const gs = se.games.filter(g => g.event === ev.id);
+    assert.ok(gs.length >= 2 && gs.length <= 3 && gs.every(g => (g.site || g.home) === ev.host && g.week === W.super), 'supers: best of three at the higher seed');
+    assert.ok(ev.seeds.includes(ev.champion));
+  }
+  assert.deepEqual([...wsTeams(se)].sort(), se.post.supers.map(ev => ev.champion).sort());
+  // A 3-team double elimination never makes a team lose three times
+  for (const ev of se.post.regionals) {
+    const losses = {};
+    for (const g of se.games.filter(g => g.event === ev.id)) { const l = g.homeR > g.awayR ? g.away : g.home; losses[l] = (losses[l] || 0) + 1; }
+    assert.ok(Object.values(losses).every(n => n <= 2));
+    assert.ok((losses[ev.champion] || 0) <= 1);
+  }
+});
+// Two-team regionals (best of three) into a 4-team MCWS
+runFormat({ regionals: 8, perRegional: 2, wsSize: 4 }, se => {
+  for (const g of se.games.filter(g => g.event === 'mcws')) assert.equal(g.day, { G1: 'Fri', G2: 'Fri', G4: 'Sat', G3: 'Sun', G5: 'Sun', F1: 'Mon', F2: 'Tue', F3: 'Wed' }[g.node], `4-team MCWS ${g.node} day`);
+  for (const ev of se.post.regionals) assert.ok(se.games.filter(g => g.event === ev.id).length <= 3);
+});
+// 32 teams, 16 two-team regionals, 8 supers, 8-team MCWS
+runFormat({ regionals: 16, perRegional: 2, wsSize: 8 }, se => {
+  assert.equal(se.post.supers.length, 8);
+  // MCWS days: openers Friday, G4 Saturday, G3 and G5 Sunday, bracket finals Monday (both brackets).
+  for (const ev of se.post.mcwsBrackets) for (const g of se.games.filter(g => g.event === ev.id)) {
+    assert.equal(g.day, { G1: 'Fri', G2: 'Fri', G4: 'Sat', G3: 'Sun', G5: 'Sun', G6: 'Mon', G7: 'Mon' }[g.node], `${ev.name} ${g.node} day`);
+  }
+  // Super regional Game 2: still at the host's field, but the visitor is the home team.
+  for (const ev of se.post.supers) {
+    const g2 = se.games.find(g => g.event === ev.id && g.node === 'S2'), g1 = se.games.find(g => g.event === ev.id && g.node === 'S1');
+    assert.equal(g1.home, ev.host); assert.ok(!g1.neutral);
+    assert.notEqual(g2.home, ev.host, 'Game 2 flips home and away'); assert.equal(g2.site, ev.host, 'Game 2 is still at the host');
+  }
+  assert.equal(se.post.mcwsBrackets.length, 2);
+});
+// MCWS places and history (Participants tab)
+{
+  const done = Object.values(league.seasons).filter(se => se.post?.champion);
+  for (const se of done) {
+    const pl = mcwsPlaces(se), ws = wsTeams(se);
+    assert.equal(Object.keys(pl).length, ws.length, `${se.year}: every MCWS team has a place`);
+    assert.equal(pl[se.post.champion].place, 1); assert.equal(pl[se.post.runnerUp].place, 2);
+    if (ws.length === 8) assert.deepEqual(Object.values(pl).map(x => x.place).sort((a, b) => a - b), [1, 2, 3, 3, 5, 5, 7, 7], '8-team MCWS places tie');
+    if (ws.length === 4) assert.deepEqual(Object.values(pl).map(x => x.place).sort((a, b) => a - b), [1, 2, 3, 4], '4-team MCWS places');
+  }
+  const last = Math.max(...done.map(se => se.year));
+  const champ = league.seasons[last].post.champion;
+  const h = mcwsHistory(league, champ, last + 1);
+  assert.ok(h.apps >= 1 && h.last === last && h.best.place === 1 && h.bestYears.includes(last) && h.w > 0, 'history counts the title');
+  const games = done.reduce((n, se) => n + se.games.filter(g => g.type === 'mcws' && (g.home === champ || g.away === champ)).length, 0);
+  assert.equal(h.w + h.l, games, 'MCWS W-L counts every MCWS game');
+  assert.equal(mcwsHistory(league, champ, done[0].year).apps, 0, 'nothing before the first season');
+}
+// Team history: head-to-head, poll history, poll records; conferences A-Z
+{
+  const { headToHead, teamPollHistory, pollRecords, recordBook } = await import('../js/records.js');
+  const { sortConferences } = await import('../js/league.js');
+  const t = Object.keys(league.seasons[league.currentYear].teams)[0];
+  const h = headToHead(league, t);
+  const all = Object.values(league.seasons).flatMap(se => se.games.filter(g => isFinal(g) && (g.home === t || g.away === t)));
+  assert.equal(h.reduce((a, r) => a + r.g, 0), all.length, 'H2H covers every game');
+  const prog = recordBook(league).programs.find(p => p.team === t);
+  assert.equal(h.reduce((a, r) => a + r.w, 0), prog.w, 'H2H wins match program wins');
+  for (const r of h) assert.equal(r.w + r.l, r.g);
+  const ph = teamPollHistory(league, t);
+  for (const x of ph) { assert.ok(x.ranked <= x.polls); if (x.high) assert.ok(x.high <= x.low); }
+  const PR = pollRecords(league);
+  const p1 = PR.programs.reduce((a, p) => a + p.at1, 0);
+  const polls = Object.values(league.seasons).reduce((a, se) => a + Object.keys(se.polls || {}).length, 0);
+  assert.equal(p1, polls, 'exactly one #1 per poll');
+  for (const m of PR.moves.filter(m => m.to)) assert.equal(m.delta, m.from - m.to);
+  const L2 = { conferences: { 'Sun Belt': {}, ACC: {}, 'big West': {} }, seasons: {} };
+  sortConferences(L2);
+  assert.deepEqual(Object.keys(L2.conferences), ['ACC', 'big West', 'Sun Belt'], 'conferences A-Z');
+}
+// At-large teams need a .500 record or better
+{
+  const { atLargeEligible } = await import('../js/postseason.js');
+  let checked = 0;
+  for (const se of Object.values(league.seasons)) {
+    const r = records(se, g => g.type === 'regular' || g.type === 'conf');
+    const inF = new Set((se.post?.field || []).map(f => f.team));
+    const allEligibleIn = Object.keys(se.teams).every(t => r[t].w < r[t].l || inF.has(t));
+    for (const f of se.post?.field || []) if (f.bid === 'at-large') { checked++; assert.ok(r[f.team].w >= r[f.team].l || allEligibleIn, `${se.year} ${f.team} at-large with a losing record while a .500 team sat out`); }
+  }
+  assert.ok(checked > 0);
+  // Force a losing team high in the order and check it is skipped.
+  const se = league.seasons[league.currentYear];
+  const recs = records(se);
+  const loser = Object.keys(se.teams).find(t => recs[t].w < recs[t].l);
+  if (loser) {
+    assert.equal(atLargeEligible(se, loser), false);
+    const B = bracketology(se);
+    const f = B.field.find(x => x.team === loser);
+    assert.ok(!f || f.bid === 'auto' || B.fill.includes(loser), 'losing team only in as an automatic bid (or to fill a short field)');
+    assert.ok(!B.firstOut.includes(loser) && !B.nextOut.includes(loser));
+  }
+}
+{ const { mcwsVenue } = await import('../js/postseason.js');
+  assert.deepEqual(mcwsVenue(league.seasons[league.currentYear]), { stadium: 'Devon Park', city: 'Oklahoma City, Okla.' });
+  assert.deepEqual(mcwsVenue({ settings: {} }), { stadium: 'Devon Park', city: 'Oklahoma City, Okla.' }, 'older saves default to Devon Park'); }
+// Play-in, then double elimination: play-in losers are out after one game;
+// everyone else needs two losses (the single championship game aside).
+{ const { confKind } = await import('../js/postseason.js');
+  assert.equal(confKind('playin', 4), 'double', 'play-in needs 5 or more teams');
+  assert.equal(confKind('playin', 2), 'single');
+  for (let run = 0; run < 3; run++) {
+    const Lp = newLeague(), sp = Lp.seasons[Lp.currentYear];
+    sp.settings.confFormat = { 'Big Ten': 'playin', 'Ivy League': 'playin', 'Metro Conference': 'playin', 'Pacific-10 Conference': 'playin' };
+    sp.settings.confTourney = { 'Big Ten': 8, 'Ivy League': 6, 'Metro Conference': 5, 'Pacific-10 Conference': 7 };
+    simGames(sp, g => g.type === 'regular' || g.type === 'conf');
+    for (const [c, size] of [['Big Ten', 8], ['Ivy League', 6], ['Metro Conference', 5], ['Pacific-10 Conference', 7]]) {
+      const ev = sp.post.confT[c];
+      assert.equal(ev.kind, 'playin', `${c} plays a play-in`);
+      const gs = sp.games.filter(g => g.event === ev.id);
+      const pre = gs.filter(g => g.node.startsWith('P-'));
+      assert.equal(pre.length, size - 4, `${c}: ${size - 4} play-in games`);
+      const byes = ev.seeds.slice(0, 8 - size);
+      assert.ok(pre.every(g => !byes.includes(g.home) && !byes.includes(g.away)), `${c}: top ${8 - size} seeds have byes`);
+      assert.ok(pre.every(g => g.day === pre[0].day) && gs.find(g => g.node === 'CH').day === 'Sun', `${c}: play-in on the first day, final Sunday`);
+      const used = [...new Set(gs.map(g => g.day))];
+      assert.ok(used.slice(0, -1).every(d => gs.filter(g => g.day === d).length >= 2), `${c}: no day with a lone game before the final`);
+      const out = pre.map(g => (g.homeR > g.awayR ? g.away : g.home));
+      for (const t of out) assert.equal(gs.filter(g => g.home === t || g.away === t).length, 1, `${t} is out after the play-in`);
+      const losses = {}; for (const g of gs) { const l = g.homeR > g.awayR ? g.away : g.home; losses[l] = (losses[l] || 0) + 1; }
+      const finalLoser = ev.nodes.find(n => n.key === 'CH').loser;
+      for (const t of ev.seeds.filter(t => !out.includes(t) && t !== ev.champion && t !== finalLoser)) assert.equal(losses[t], 2, `${c}: ${t} out after two losses`);
+      assert.ok(ev.seeds.includes(ev.champion) && !out.includes(ev.champion));
+    }
+  }
+}
+// Hot seat: suggested firings after a season (suggestions only)
+{ const { hotSeat } = await import('../js/hotseat.js');
+  const Lh = newLeague();
+  simGames(Lh.seasons[Lh.currentYear], undefined, { autoLock: true });
+  const first = hotSeat(Lh);
+  assert.ok(first.every(x => x.level !== 'fire'), 'nobody is told to fire a first-year coach');
+  beginOffseason(Lh); startNextSeason(Lh);
+  simGames(Lh.seasons[Lh.currentYear], undefined, { autoLock: true });
+  beginOffseason(Lh); startNextSeason(Lh);
+  const sh = Lh.seasons[Lh.currentYear];
+  simGames(sh, undefined, { autoLock: true });
+  const before = JSON.stringify(Object.values(sh.teams).map(t => t.coachId));
+  const hs = hotSeat(Lh);
+  assert.equal(JSON.stringify(Object.values(sh.teams).map(t => t.coachId)), before, 'the list never fires anyone');
+  const n = Object.keys(sh.teams).length, fire = hs.filter(x => x.level === 'fire').length;
+  console.log('hot seat after 3 seasons:', fire, 'fire,', hs.filter(x => x.level === 'hot').length, 'hot,', hs.filter(x => x.level === 'warm').length, 'warm; top:', hs[0] && `${hs[0].school} (${hs[0].reasons.join('; ')})`);
+  assert.ok(fire <= Math.ceil(n * 0.2), 'only a handful of firings suggested');
+  assert.ok(hs.every((x, i) => i === 0 || hs[i - 1].score >= x.score), 'hottest first');
+  assert.ok(hs.every(x => x.reasons.length || x.cool.length), 'every entry says why');
+  assert.ok(!hs.some(x => x.school === sh.post.champion && x.level !== 'warm'), 'the national champion is safe');
+  for (const x of hs) assert.equal(sh.teams[x.school].coachId, x.coachId); }
+// Independent teams: no conference games, title, tournament or automatic
+// bid; they fill their weekends with non-conference series.
+{ const { INDEPENDENT, conferences: confsOf, regSeasonChamps: rsc } = await import('../js/standings.js');
+  const Li = newLeague();
+  simGames(Li.seasons[Li.currentYear], undefined, { autoLock: true });
+  const di = beginOffseason(Li);
+  for (const t of ['Texas', 'Columbia']) di.teams[t].conference = INDEPENDENT;
+  const si = startNextSeason(Li);
+  const regi = si.games.filter(g => g.type === 'regular');
+  for (const t of ['Texas', 'Columbia']) {
+    const gs = regi.filter(g => g.home === t || g.away === t);
+    assert.equal(gs.filter(g => g.confGame).length, 0, `${t} plays no conference games`);
+    assert.ok(gs.length >= 44, `${t} plays a full schedule (${gs.length})`);
+    const weekends = new Set(gs.filter(g => ['Fri', 'Sat', 'Sun'].includes(g.day)).map(g => g.week)).size;
+    assert.ok(weekends >= 10, `${t} plays most weekends (${weekends} of 12)`);
+  }
+  assert.ok(!confsOf(si).includes(INDEPENDENT), 'Independent is not a conference');
+  simGames(si, undefined, { autoLock: true });
+  assert.equal(rsc(si, INDEPENDENT).length, 0, 'no independent regular-season title');
+  assert.ok(!si.post.confT[INDEPENDENT], 'no independent tournament');
+  assert.ok(Li.conferences[INDEPENDENT], 'every league has the Independent group');
+  assert.throws(() => deleteConference(Li, si, INDEPENDENT), /reserved|can't be deleted/);
+  console.log('independents:', ['Texas', 'Columbia'].map(t => `${t} ${regi.filter(g => g.home === t || g.away === t).length} games${si.post.field.some(f => f.team === t) ? ', at-large bid' : ''}`).join('; ')); }
+// Added voters: random personality, vote from the next poll, carry into
+// later seasons, can be removed.
+{ const { addRandomVoter, removeVoter, votersOf, VOTER_PANEL } = await import('../js/polls.js');
+  const Lv = newLeague(), sv = Lv.seasons[Lv.currentYear];
+  const v1 = addRandomVoter(sv), v2 = addRandomVoter(sv);
+  assert.equal(votersOf(sv).length, VOTER_PANEL.length + 2);
+  assert.ok(v1.id !== v2.id && v1.name !== v2.name && v1.style && v1.outlet, 'each added voter is a new person');
+  simGames(sv, g => g.week === 1);
+  assert.ok(sv.polls[1].ballots[v1.id] && sv.polls[1].voters === VOTER_PANEL.length + 2, 'added voters vote in the next poll');
+  assert.ok(!sv.polls[0].ballots[v1.id], 'polls already out keep their ballots');
+  removeVoter(sv, v2.id);
+  assert.equal(votersOf(sv).length, VOTER_PANEL.length + 1);
+  simGames(sv, undefined, { autoLock: true });
+  beginOffseason(Lv); const nv = startNextSeason(Lv);
+  assert.ok(votersOf(nv).some(v => v.id === v1.id), 'added voters stay on the panel next season'); }
+// Bigger tournaments: a top 9 with a play-in (8 vs 9, then 8-team double elimination)
+{ const L9 = newLeague(), s9 = L9.seasons[L9.currentYear];
+  s9.settings.confFormat = { 'Big Ten': 'playin' }; s9.settings.confTourney = { 'Big Ten': 9 };
+  simGames(s9, g => g.type === 'regular' || g.type === 'conf');
+  const ev = s9.post.confT['Big Ten'];
+  assert.equal(ev.kind, 'playin'); assert.equal(ev.seeds.length, 9);
+  const gs = s9.games.filter(g => g.event === ev.id);
+  const pre = gs.filter(g => g.node.startsWith('P-'));
+  assert.equal(pre.length, 1, 'top 9: one play-in game');
+  assert.deepEqual([pre[0].home, pre[0].away].sort(), [ev.seeds[7], ev.seeds[8]].sort(), 'seeds 8 and 9 play in');
+  const out = pre[0].homeR > pre[0].awayR ? pre[0].away : pre[0].home;
+  assert.equal(gs.filter(g => g.home === out || g.away === out).length, 1, 'the play-in loser is out');
+  const per = {}; for (const g of gs) for (const t of [g.home, g.away]) per[t + g.day] = (per[t + g.day] || 0) + 1;
+  assert.ok(Math.max(...Object.values(per)) <= 2, 'at most a doubleheader per team per day');
+  assert.ok(ev.champion && ev.seeds.includes(ev.champion)); }
+// Team histories: where the postseason ended, NCAA and conference tournament records
+{ const { postseasonDetail, postseasonRecord } = await import('../js/postseason.js');
+  const Lp = newLeague(), sp = Lp.seasons[Lp.currentYear];
+  simGames(sp, undefined, { autoLock: true });
+  for (const f of sp.post.field) {
+    const d = postseasonDetail(sp, f.team), r = postseasonRecord(sp, f.team);
+    assert.ok(d && d.text && d.tab, `${f.team} has a postseason detail`);
+    const ng = sp.games.filter(g => ['regional', 'super', 'mcws'].includes(g.type) && (g.home === f.team || g.away === f.team));
+    assert.equal(r.ncaa.w + r.ncaa.l, ng.length, `${f.team}: NCAA record counts every NCAA game`);
+    if (d.tab === 'regionals' && !d.text.endsWith('champion')) assert.match(d.text, / · (out in .+|lost series \d-\d)$/);
+  }
+  assert.equal(postseasonDetail(sp, sp.post.champion).text, 'National champion');
+  assert.equal(postseasonRecord(sp, sp.post.champion).ncaa.l <= 3, true);
+  for (const ev of Object.values(sp.post.confT)) for (const t of ev.seeds) {
+    const c = postseasonRecord(sp, t).conf;
+    assert.ok(c && c.ev === ev.id, `${t} conference tournament record`);
+    if (t === ev.champion) assert.ok(c.champ && !c.out); else assert.ok(!c.champ && c.out, `${t}: round it went out (${ev.kind})`);
+  } }
+// Fail-safe: every member of a conference plays the same number of conference games
+{
+  const { confRounds, confSeriesCounts } = await import('../js/schedule.js');
+  const { rng } = await import('../js/util.js');
+  for (const n of [5, 7, 9, 11, 12, 13, 15]) for (let k = 0; k < 30; k++) {
+    const names = Array.from({ length: n }, (_, i) => `t${i}`);
+    assert.equal(new Set(Object.values(confSeriesCounts(confRounds(names, 9, rng(k + n * 100)), names))).size, 1, `${n}-team conference: equal series`);
+  }
+  for (const se of Object.values(league.seasons)) {
+    const per = {};
+    for (const g of se.games) if (g.type === 'regular' && g.confGame) for (const t of [g.home, g.away]) per[t] = (per[t] || 0) + 1;
+    const byConf = {};
+    for (const t of Object.values(se.teams)) (byConf[t.conference] ||= new Set()).add(per[t.school] || 0);
+    for (const [c, v] of Object.entries(byConf)) assert.equal(v.size, 1, `${se.year} ${c}: every team plays the same number of conference games (${[...v]})`);
+  }
+}
+// Midweek games lean regional: most visitors travel a short way from home or a weekend site
+{
+  const { cityPoint, miles } = await import('../js/geo.js');
+  assert.deepEqual(cityPoint('Durham, NC'), cityPoint('Durham, N.C.'));
+  assert.ok(miles(cityPoint('Austin, Texas'), cityPoint('Norman, Okla.')) < 400 && miles(cityPoint('Austin, Texas'), cityPoint('Seattle, Wash.')) > 1500);
+  const se = league.seasons[league.currentYear], at = {};
+  for (const x of se.games) if (x.type === 'regular' && x.day !== 'Tue' && x.day !== 'Wed') for (const t of [x.home, x.away]) ((at[t] ||= {})[x.week] ||= (x.site || x.home));
+  const trips = se.games.filter(x => x.type === 'regular' && x.day === 'Tue' && !/Game 2/.test(x.label || '')).map(m => {
+    const H = cityPoint(se.teams[m.home].city), v = m.away;
+    return Math.min(...[v, at[v]?.[m.week - 1], at[v]?.[m.week]].filter(t => t && se.teams[t]).map(t => miles(cityPoint(se.teams[t].city), H)));
+  }).filter(Number.isFinite);
+  const share = trips.filter(t => t < 400).length / trips.length;
+  console.log(`midweek: ${trips.length} sets, ${(share * 100).toFixed(0)}% within 400 miles of the visitor's home or weekend site`);
+  assert.ok(share > 0.45, 'midweek games lean regional');
+}
+// Conference weekend formats: Saturday doubleheaders
+{
+  const { generateSchedule, applyConfWeekend, seriesDays } = await import('../js/schedule.js');
+  const { newLeague: nl, currentSeason: cs } = await import('../js/league.js');
+  const L2 = nl(), s2 = cs(L2);
+  s2.settings.confWeekend = { 'Big Ten': 'dh-sun', 'Southwest Conference': 'dh-fri', 'Pacific-10 Conference': 'dh-mix' };
+  s2.games = generateSchedule(s2);
+  const daysOf = conf => {
+    const by = {};
+    for (const g of s2.games) if (g.type === 'regular' && g.confGame && s2.teams[g.home].conference === conf) (by[g.series] ||= []).push(g);
+    return Object.values(by).map(gs => gs.sort((a, b) => a.order - b.order).map(g => g.day + (g.dh ? g.dh : '')).join(' '));
+  };
+  assert.ok(daysOf('Big Ten').length && daysOf('Big Ten').every(d => d === 'Sat1 Sat2 Sun'), 'Big Ten: Saturday doubleheader, then Sunday');
+  assert.ok(daysOf('Southwest Conference').every(d => d === 'Fri Sat1 Sat2'), 'Big 12: Friday, then a Saturday doubleheader');
+  assert.deepEqual([...new Set(daysOf('Pacific-10 Conference'))].sort(), ['Fri Sat1 Sat2', 'Sat1 Sat2 Sun'], 'Big West: mixed');
+  assert.ok(daysOf('Metro Conference').every(d => d === 'Fri Sat Sun'), 'MAC: one game a day');
+  assert.ok(s2.games.filter(g => g.type === 'regular' && !g.confGame && g.series && !g.midweek).every(g => !g.dh), 'non-conference series stay one a day');
+  // Changing the format re-lays unplayed series.
+  s2.settings.confWeekend['Metro Conference'] = 'dh-sun';
+  assert.ok(applyConfWeekend(s2, 'Metro Conference') > 0);
+  assert.ok(daysOf('Metro Conference').every(d => d === 'Sat1 Sat2 Sun'), 'MAC re-laid');
+  assert.deepEqual(seriesDays(undefined).map(x => x.day), ['Fri', 'Sat', 'Sun']);
+}
+// Selection committee: tiered team-vs-team comparisons and insertion ranking
+{
+  const { compareTeams, committeeRank, committeeSheet, committeeSeeds, COMMITTEE_TIERS } = await import('../js/postseason.js');
+  const base = { rpiRank: 10, rpi: 0.55, sos: 10, q1w: 2, q2w: 2, q3l: 1, q4l: 0, q1p: 0.5, q2p: 0.5, q12p: 0.5, aq: false, reg: false };
+  const mk = (stats, h2h = {}) => ({ stat: Object.fromEntries(Object.entries(stats).map(([t, x]) => [t, { ...base, ...x }])), h2h });
+  // Tier 1 wins outright: better RPI and more Q1 wins beats a cleaner Q4 record.
+  let c = compareTeams(mk({ A: { rpiRank: 5, q1w: 4, q4l: 1 }, B: { rpiRank: 8, q1w: 2, q4l: 0 } }), 'A', 'B');
+  assert.deepEqual([c.better, c.tier, c.won, c.lost], ['A', 1, ['rpi', 'q1w'], ['q4l']]);
+  // Tier 1 even (1-1, one tie) -> Tier 2 decides on head-to-head and SOS.
+  c = compareTeams(mk({ A: { rpiRank: 5, q4l: 1 }, B: { rpiRank: 8, sos: 3 } }, { 'B|A': 2, 'A|B': 1 }), 'A', 'B');
+  assert.deepEqual([c.better, c.tier], ['B', 2]);
+  // Tier 1 even -> a better overall record helps in Tier 2.
+  c = compareTeams(mk({ A: { rpiRank: 5, q4l: 1, wl: 0.6 }, B: { rpiRank: 8, wl: 0.7 } }), 'A', 'B');
+  assert.deepEqual([c.better, c.tier, c.won], ['B', 2, ['wl']]);
+  // Tiers 1 and 2 even -> Tier 3 (automatic bid).
+  c = compareTeams(mk({ A: { aq: true }, B: {} }), 'A', 'B');
+  assert.deepEqual([c.better, c.tier, c.won], ['A', 3, ['aq']]);
+  // Everything even -> raw RPI.
+  c = compareTeams(mk({ A: { rpi: 0.5 }, B: { rpi: 0.6 } }), 'A', 'B');
+  assert.deepEqual([c.better, c.tier], ['B', 0]);
+  // The owner's example: A over B, C over B, then C over A -> C, A, B.
+  const ex = mk({ A: { rpiRank: 1, q1w: 3 }, B: { rpiRank: 2, q1w: 2 }, C: { rpiRank: 3, q1w: 5, q4l: -1 } });
+  ex.stat.C.q4l = 0; ex.stat.A.q4l = 1; ex.stat.B.q4l = 1;
+  assert.deepEqual(committeeRank(null, ['A', 'B', 'C'], ex), ['C', 'A', 'B']);
+  assert.equal(COMMITTEE_TIERS.length, 3);
+  // In a real season, every seed beats the seed right below it.
+  for (const se of Object.values(league.seasons).filter(x => x.post?.field)) {
+    const sh = committeeSheet(se), teams = se.post.field.map(f => f.team);
+    const seeds = committeeSeeds(se, teams, sh);
+    for (let i = 0; i + 1 < seeds.length; i++) assert.equal(compareTeams(sh, seeds[i], seeds[i + 1]).better, seeds[i], `${se.year}: seed ${i + 1} beats seed ${i + 2}`);
+  }
+}
+
+// ---------- Baseball: its own dynasty, 9 innings, series and midweek ----------
+{
+  const { simulateGame, gameRules } = await import('../js/sim.js');
+  const B = newLeague({ side: 'baseball' }), sb = currentSeason(B);
+  assert.equal(B.side, 'baseball'); assert.equal(B.name, 'AAU Baseball');
+  assert.equal(Object.keys(sb.teams).length, 64);
+  assert.ok(!sb.teams['Boston University'] && !sb.teams.Wisconsin && sb.teams.Vanderbilt && sb.teams['Johns Hopkins'], 'baseball has its own programs');
+  assert.equal(sb.teams.Texas.stadium, 'UFCU Disch–Falk Field');
+  assert.equal(coachName(B, sb.teams.Vanderbilt.coachId), 'Tim Corbin');
+  assert.equal(sb.settings.mcwsName, 'College World Series');
+  // Games: 9 innings, 10-run rule after 7, no runner on second in extras.
+  const R = gameRules(sb.settings);
+  assert.deepEqual([R.innings, R.runRuleRuns, R.runRuleAfter, R.tiebreaker], [9, 10, 7, false]);
+  let extras = 0;
+  for (let i = 0; i < 400; i++) {
+    const g = simulateGame(sb.teams.UCLA, sb.teams.Yale, {}, { seed: i + 1, ...R });
+    const n = Math.max(g.homeLine.length, g.awayLine.length);
+    if (!g.runRule) assert.ok(n >= 9, `a full game is 9 innings (${n})`); else assert.ok(n >= 7 && n < 9);
+    if (n > 9) extras++;
+  }
+  console.log(`baseball: ${extras} of 400 sample games went to extras`);
+  // Schedule: non-conference series are 4 games Thursday-Sunday, conference series 3.
+  const reg = sb.games.filter(g => g.type === 'regular');
+  const series = {};
+  for (const g of reg.filter(g => g.series && !g.midweek)) (series[g.series] ||= []).push(g);
+  for (const gs of Object.values(series)) {
+    const days = gs.map(g => g.day).join(' ');
+    if (gs[0].confGame) assert.equal(gs.length, 3, 'conference series: 3 games');
+    else assert.equal(days, 'Thu Fri Sat Sun', 'non-conference series: 4 games, Thursday-Sunday');
+  }
+  // Far fewer tournaments: about a third of the teams play one, nobody two.
+  const tIn = {};
+  for (const g of reg.filter(g => g.tourney)) for (const t of [g.home, g.away]) (tIn[t] ||= new Set()).add(g.tourney);
+  const tTeams = Object.keys(tIn).length;
+  assert.ok(tTeams >= 10 && tTeams <= 32, `${tTeams} of 64 teams in a tournament`);
+  assert.ok(Object.values(tIn).every(x => x.size === 1), 'nobody plays two tournaments');
+  // Midweek: every week from week 2, mostly one game on Tuesday, sometimes
+  // Tuesday and Wednesday, never a doubleheader.
+  const mid = reg.filter(g => g.day === 'Tue' || g.day === 'Wed');
+  const day = new Set();
+  for (const g of mid) for (const t of [g.home, g.away]) { const k = `${t}|${g.week}|${g.day}`; assert.ok(!day.has(k), `no midweek doubleheader: ${k}`); day.add(k); }
+  assert.ok(!mid.some(g => g.midweek === 'doubleheader'));
+  const singles = mid.filter(g => !g.series).length, pairs = new Set(mid.filter(g => g.series).map(g => g.series)).size;
+  assert.ok(singles > pairs * 2 && pairs > 0, `mostly single midweek games (${singles} singles, ${pairs} Tue-Wed pairs)`);
+  assert.ok(Math.min(...mid.map(g => g.week)) === 2);
+  // No team plays twice on one day.
+  const slot = new Set();
+  for (const g of reg) for (const t of [g.home, g.away]) { const k = `${t}|${g.week}|${g.day}|${g.order}`; assert.ok(!slot.has(k), k); slot.add(k); }
+  simGames(sb, undefined, { autoLock: true });
+  assert.equal(sb.phase, 'complete');
+  const fin = sb.games.filter(g => g.type === 'regular');
+  console.log(`baseball runs per team-game ${(fin.reduce((a, g) => a + g.homeR + g.awayR, 0) / fin.length / 2).toFixed(2)}, champion ${sb.post.champion}`);
+  // Softball and baseball never share a save or settings.
+  assert.equal(currentSeason(newLeague()).settings.innings, 7);
+  assert.ok(currentSeason(newLeague()).teams['Boston University']);
+  // AAU Dynasty logos start on both sides.
+  assert.ok(sb.teams.Caltech.logoOverride.includes('Caltech_beavers'));
+  assert.ok(currentSeason(newLeague()).teams['Boston University'].logoOverride.includes('boston_university'));
+}
+console.log(`all checks ok in ${Date.now() - t0} ms`);

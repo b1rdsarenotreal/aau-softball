@@ -1,0 +1,226 @@
+# AAU Softball & Baseball
+
+A commissioner-style **college softball and baseball** dynasty for the AAU's member schools, starting in **2030**. It's built to feel like the real college game: line scores, weekend series, the RPI, a Top 15 poll, conference tournaments, regionals, super regionals and a World Series. You have the final say on every result.
+
+Softball and baseball are **two separate dynasties** behind the **Softball / Baseball** switch in the top bar. Each has its own teams, schedule, history and save, so nothing in one touches the other.
+
+It is a static site with no build step and no server, so it runs on GitHub Pages as-is.
+
+## The league
+
+- **Softball:** the 61 AAU schools with varsity softball (Division I and III).
+- **Baseball:** the 64 AAU schools with varsity baseball (Division I and III).
+
+Both start in the owner's eight conferences from the AAU Dynasty: SWC, Pac-10, CAC, Big Ten, Metro, Ivy, UCAA and UAA, each with its own logo. Every team uses its school's real colors, its **real 2026 head coach** and its real home field and city. The AAU's Canadian members have no varsity softball or baseball. Teams, coaches, conferences, colors, logos and ratings can all be changed in the app.
+
+## Ratings
+
+Every team has three ratings from 40 to 99:
+
+| Rating | What it covers |
+|---|---|
+| **OFF** | Hitting: contact, power, plate discipline |
+| **PIT** | Pitching |
+| **DEF** | Fielding: errors and turning batted balls into outs |
+
+**OVR = 40% OFF + 40% PIT + 20% DEF.** Starting ratings come from each program's 2026 season (record, RPI, postseason); Division III programs start in the 40s and low 50s. They can be edited on the Teams page or a team's profile.
+
+**Ratings move during the season.** Every result counts: beating a better team raises a team's ratings, and losing to a weaker one lowers them. The part of the game that decided it gets most of the change. A team can move at most 10 points from its preseason rating in any category. Settings lets you choose how much ratings move, or turn it off.
+
+## Softball and baseball
+
+Baseball runs exactly like softball except for these defaults (all in Settings):
+
+| | Softball | Baseball |
+|---|---|---|
+| Innings | 7 | 9 |
+| Run rule | 8 runs after 5 | 10 runs after 7 |
+| Extra innings | runner on second from the 8th | regular extra innings |
+| Preseason tournaments | weeks 1–3, most teams play one or two | weeks 1–2, only about a third of teams play one |
+| Non-conference series | 3 games, Fri–Sun | **4 games, Thu–Sun** |
+| Conference series | 3 games | 3 games |
+| Midweek | from week 4, about every other week; Tuesday doubleheader or Tue–Wed pair | from week 2, every week; **mostly one Tuesday game, sometimes a Tue–Wed pair, never a doubleheader** |
+| World Series | Women's College World Series, Devon Park, Oklahoma City | College World Series, Charles Schwab Field, Omaha |
+
+Both seasons are 13 weeks: softball teams play about 48–53 regular-season games, baseball teams about 55–68 (most near 59).
+
+## The box score simulator
+
+Simulated games play out every plate appearance. Hitting (OFF) faces pitching (PIT) and fielding (DEF), and each plate appearance ends in a strikeout, walk, hit-by-pitch, single, double, triple, home run, error or out. Runners advance, double plays happen and sacrifice flies score runs.
+
+- **College rules:** 7 innings in softball (9 in baseball), the home team skips its last at-bat when already ahead, walk-offs, the **8-run rule after 5 innings**, and extra innings starting with a **runner on second** from the 8th inning. Both rules can be turned off in Settings.
+- **Game cards:** each game is a card built like the poll. The top line has the conference logo, what the game is (tournament, midweek, postseason round) with where the series stands, and the status (Final, Final/9, or the day). Then a slim row per team, away on top: the logo in a small box, the poll rank and name (the seed in parentheses in the postseason) and the score. The winner's row is bold with a ◀ marker and a faint wash of its color; the loser is grayed out. Before the game each row shows the team's record, with the conference record in parentheses for conference games (30-5 (7-0)). Saving a score never moves a game: doubleheader and tournament games keep their place in the day. The bottom line has the field and city, and **Box score ›** (or, before the game, the favorite's win chance and a 🎲 Sim button). The home page shows the latest results as small scoreboards.
+- **Box score:** clicking a played game opens its box score: the same top line, both teams bigger with mascot and record (through this game), the line score with R/H/E, where and when it was played, and a chip for each game of the series (click one to jump to it). **Edit score** opens the editor (‹ Box score goes back), and Re-simulate or Clear result are there too. Games not yet played open straight into the editor.
+- **Results:** a full line score: runs by inning plus R/H/E. Teams average about 4 runs, 7 hits and 1 error a game. A team 10 points better wins about 78% of the time, and one 20 points better about 93% (on "Fewer" upsets: about 82% and 96%). Settings has an **Upsets** option (Fewer, Realistic, More, Chaos).
+- **Series tally:** each weekend game shows where its series stands in the box's top corner, for example "Michigan leads series 1-0", "Series tied 1-1" or "Ohio State wins series 3-0". Games not yet played show the standing going in. The World Series Championship Series works the same way. Long school names switch to their abbreviation so the score always fits.
+- **Fast score entry:** in the game editor, Tab moves through the line score in game order: top of the 1st, bottom of the 1st, top of the 2nd, and so on. After the last inning it goes to hits and errors, and Shift+Tab goes back. Each box's number is selected when you land on it, so typing replaces it.
+- **Simulations are suggestions:** in the game editor you can simulate, change anything, and then save. You can also type in a line score by hand.
+- **Hits and errors for hand-entered scores:** leave the H and E boxes blank and they're filled in when you save, based on the line score and both teams' ratings. Each half inning is replayed from the ratings until it produces exactly the runs you entered, so a 6-run inning comes with a believable number of hits, and a team that's bad in the field makes more errors. **Estimate H & E** fills them in early so you can adjust them, and anything you type yourself is kept. If you change the runs after an estimate, the estimate is cleared and redone. Settings → Simulation can also fill in hand-entered games saved earlier with 0 hits and 0 errors.
+
+## The season
+
+- **Schedule:** a new one is built every season, **13 weeks** by default (Settings → Schedule format).
+  - **Early-season tournaments (weeks 1–3):** teams play **Thursday-to-Sunday round robins** of 5 or 6 teams. No two teams in an event are from the same conference, everyone plays everyone (4 or 5 games), and one team hosts, so the event is named for it (for example the *Stanford Showcase*). Every team plays one or two tournaments, and teams not in one that week play a weekend series. Settings can make it weeks 1–2, 1–4, week 1 only, or turn tournaments off. In baseball they're weeks 1–2 and only about a third of teams play one (Settings → **Tournament share**); everyone else plays 4-game Thursday-to-Sunday series.
+  - **Tournament standings:** in a tournament week, the Schedule page has a **Tournament standings** panel (closed until you open it) with a table for each event: W-L, runs scored and allowed, and run differential. Ties go to head-to-head between two teams, then run differential. The leader is marked champion once every game is final.
+  - **Weekend series:** three games, Friday to Sunday. Each conference can play its conference series differently (Standings → Commissioner → **Weekend series**): one game a day, Friday plus a **Saturday doubleheader**, a Saturday doubleheader plus Sunday, or a Saturday doubleheader with the single game on Friday or Sunday depending on the series. Changing it re-lays that conference's unplayed series right away and carries into later seasons. Non-conference series are Friday to Sunday in softball and four games, Thursday to Sunday, in baseball (Settings → **Non-conference series**).
+  - **Midweek (softball):** from **week 4** through the next-to-last week (the last week before conference tournaments has no midweek games), teams play **two-game midweek sets** against one opponent, about **every other week** (Settings can make it every week). Teams that played fewer weekend games get a few more sets, so season totals stay within a few games (about **48–53 per team** in softball). A set is a **Tuesday doubleheader** or a **Tuesday and Wednesday** pair (Settings can pick one or mix both). **Midweek opponents lean regional:** when it can, the schedule pairs a team with a school near its home, near where it played last weekend, or near where it plays this weekend (by state), hosted by whichever school is easier to reach. In baseball, midweek is every week from week 2: most weeks a single Tuesday game, sometimes a Tuesday and Wednesday pair, never a doubleheader. It isn't strict: some randomness keeps it varied, teams don't repeat a midweek opponent or face their weekend opponent, and the home-game balance still counts.
+  - **Conference play** fills the last weeks, and **a conference's size sets when it starts**: one week per round of its round robin (a 6-team conference plays 5 weeks, an 8-team conference 7, a 10-team conference 9), all finishing on the final weekend. **No conference plays more than 9 weeks**, so a big conference plays only some of its members each season (which ones changes every year). **Every member of a conference always plays the same number of conference series** (a fail-safe in the schedule builder): an 11-, 13- or 15-team conference plays 8 series per team, each team with one conference bye weekend, and a 12-, 14- or 16-team conference plays 9. The Standings page warns if hand edits ever make a conference's schedules uneven. And a team never plays a non-conference weekend series once its conference season has begun. Conference rivals never meet outside conference play. Teams with a **conference bye** play a non-conference series, or a single Thursday game if nobody else is free. Conference opponents who met the year before **swap home and away**.
+  - The start week and the rest week are settings too. A season keeps the format it was scheduled with, so changing a setting affects the next schedule.
+- **Schedule filter:** the Schedule page shows **All games** by default. Filter buttons above the games narrow a week to **Ranked teams** (at least one ranked team, using the poll in effect when the game was played), **Ranked vs. ranked**, or one conference (every game with one of its teams). Day headers show how many of the day's games match. The filter stays as you switch weeks and goes back to All games when the page is reloaded. The Sim buttons still cover the whole week.
+- **Standings:** ordered by conference winning percentage. Ties are broken in this order, and the same order seeds the conference tournaments:
+  1. Head-to-head among all the tied teams. If that separates some teams but leaves others still tied, those teams start over with head-to-head among just themselves.
+  2. Winning percentage against common conference opponents, starting with the highest-placed opponent and working down (opponents tied with each other count together). Teams still tied after a split go back to head-to-head.
+  3. RPI.
+  4. Coin flip (fixed for the season, so it doesn't change on reload).
+  
+  The Standings page lists these in a collapsible Tiebreakers box. Teams tied for the best conference record **share the regular-season title** (co-champions on team, coach and conference pages); the tiebreakers still decide the tournament's top seed and, with no tournament, the automatic bid. You can override the regular-season champion to name a single one.
+- **RPI:** 25% winning percentage, 50% opponents' winning percentage (not counting games against the team) and 25% opponents' opponents' winning percentage.
+- **Rankings page:** the Top 15 poll (with a **Dropped out** list showing who fell out, their old rank and that week's record), the RPI, **strength of schedule** and power ratings. Strength of schedule is ⅔ opponents' winning percentage plus ⅓ opponents' opponents', with each team's opponents' combined record.
+- **World Series venue:** every World Series game is played at **Devon Park in Oklahoma City** (softball) or **Charles Schwab Field in Omaha** (baseball). The venue shows at the top of the World Series tab, on each World Series game card and in the game window. Change the stadium or city in Settings → League (it applies to the current season and carries forward).
+- **Polls** show each ranked team's record for that week (AAU National Tournament record in the final poll), in green or red, on slim rows with the rank on the team's color. Hover over a record (or tap it on a phone) for a card with that week's games: the day, *vs.* or *at*, each opponent with its rank at the time, and the score.
+- **Bracketology** (Rankings → Bracketology): from the end of Week 4 until the real field is announced, a projection of the national field and regionals as if the season ended that day. Automatic bids go to each conference's current leader (its best team in the committee order before league play starts, its tournament champion once there is one); at-large spots and seeds follow the committee order. It shows each projected regional (host, teams, conferences, records and RPI ranks), the projected automatic bids, and the last four in, first four out and next four out. Nothing is saved, so it updates as games are played.
+- **Top 15 poll** (Settings → Poll size can make it a Top 10, 20 or 25): a fixed panel of **23 voters** (fictional writers and outlets) fills out ballots every week, starting with a preseason poll. Every voter starts from the same picture, built like the CFB dynasty's poll: **team strength** (power ratings worked out from every game's score, starting from the teams' OFF/PIT/DEF ratings) blended with a **season-long résumé** (every win counts, more against a strong opponent; every loss costs, less against a strong opponent). Strength carries most of the weight early; the résumé takes over as games are played. Losses weigh as much as wins: losing a series never helps a résumé. Voters also remember last week's poll a little, and two rules always hold: **a ranked team that loses more games than it wins in a week never moves up**, and **a ranked team that wins every game it plays in a week never drops**. Each then leans a little by personality. Some trust talent and are slow to move teams, some go by the numbers or schedule strength, some react to last week or punish bad losses, and a few regional voters give the conference they cover a small boost. The leans are small, so the poll stays close to a consensus. The 23 built-in personalities can't be edited, but **+ Add voter** (Rankings page, under the poll) adds a new voter with a random name, outlet and personality: one of the same types (old school, numbers, regional, consensus, reactive, tough on bad losses, record first, schedule strength, talent evaluator, steady, wildcard, hot teams, résumé), with its leans nudged a little. Added voters vote from the next poll on, stay on the panel in later seasons, and can be removed with ✕. Polls already out keep their ballots. The Rankings page lists the voters, each one's #1 vote, and any voter's full ballot next to the poll. Each poll shows points and first-place votes, and you can edit or regenerate any poll.
+- **Ranks at game time:** played games on the Schedule and team pages show each team's rank from the poll in effect when the game was played. Week 1 games use the preseason poll. Games not yet played show the latest poll and each team's current record, with the conference record in parentheses for conference games (for example **22-3 (3-0)**).
+
+## The postseason
+
+The AAU National Tournament's shape is set in **Settings → AAU National Tournament**, so it can change without touching the code:
+
+- **Regionals:** how many, and how many teams in each. Two-team regionals are a best-of-three series. Three to six teams play double elimination with an "if necessary" final; four is the classic AAU National Tournament format: Friday Games 1 and 2, Saturday Games 3, 4 and 5, Sunday the regional final and, if needed, a second final. The top national seeds host, and the field is placed serpentine (with 4 regionals: 1-8-9-16, 2-7-10-15 and so on). Each regional and super regional is named after the host's city (Texas hosts the **Austin Regional**), or the school if it has no city set.
+- **Qualifiers:** regionals × teams per regional. Each conference champion gets an automatic bid and the committee picks the rest.
+- **Super regionals:** used when there are twice as many regionals as World Series spots. Two regional champions play a best-of-three series at the higher seed (the 1 seed's regional meets the last host's).
+- **World Series:** **4 teams** play double elimination down to two, then a best-of-three Championship Series. **8 teams** split into **Bracket A** (paths 1, 4, 5, 8) and **Bracket B** (2, 3, 6, 7), each a four-team double elimination with an "if necessary" bracket final. The two bracket winners then play a **best-of-three final**, as in today's baseball and softball World Series.
+
+The editor checks that the format works: the World Series needs as many regionals as teams, or twice as many with super regionals, and the field can't be bigger than the league. A new format applies to the current season's tournament if its field hasn't been announced, and otherwise starts the next season. Once the field is announced, that season's format is locked in.
+
+The default is a 32-team field in eight 4-team regionals, best-of-three super regionals and an 8-team World Series. Each stage runs in the week after the last:
+
+1. **Conference tournaments:** each conference picks a format and how many teams make it. The formats are **single elimination**, **double elimination**, and **play-in, then double elimination**. By default, conferences with 9 or more teams take their top 6 and the rest take their top 4. Both are set on the Standings page. You can also switch a tournament's format or edit its seeds on the Postseason page until its first game. Double elimination has a winners bracket and an elimination bracket. The two bracket winners then meet in **one championship game, with no "if necessary" game**. **Play-in, then double elimination** (5 or more teams) starts with a single-elimination play-in round on Wednesday, so a play-in loser is out. The top seeds skip it. The four teams left then play the double-elimination bracket. In a top 6, seeds 3 vs 6 and 4 vs 5 play in, and seeds 1 and 2 wait. In a top 5, only 4 vs 5 plays in. In a top 8, all eight play in. Bigger tournaments play in to an eight-team double-elimination bracket: in a top 9, only 8 vs 9 plays in; in a top 10, 7 vs 10 and 8 vs 9, and so on. Tournaments can take any number of teams up to the whole conference. With fewer than 5 teams, this format is played as plain double elimination. No tournament day has a lone game: a day with only one game is folded into the next day of play (so a team can play a doubleheader, but never three games in a day), and the days run back to back ending with the final on Sunday. The champion gets the automatic bid.
+2. **Selection:** two steps.
+   - **Picking the teams:** the **automatic qualifiers** (with how they got the bid), then the **at-large board**: every at-large spot plus the next 10 teams, in **committee order** (the poll isn't used, and is shown last for reference). A line marks the committee's cut, and last four in / first four out are tagged. Columns run in the order the committee weighs them: record, **RPI** (highlighted), **Q1–Q4** records, **SOS**, then poll. Check and uncheck teams to pick the at-large field, then **Confirm** the teams. **Teams below .500 can't take an at-large spot** (they only get in as an automatic qualifier); in the rare case there aren't enough .500 teams to fill the field, the best of the rest fill the last spots and are tagged. The same rule applies to Bracketology.
+   - **How the committee compares teams:** two at a time, in tiers. **Tier 1:** RPI, Q1 wins, Q4 losses. **Tier 2:** strength of schedule, head-to-head, Q2 wins, overall W-L (winning percentage). **Tier 3** (splitting hairs): automatic bid, regular-season conference title, Q3 losses, Q1 win %, Q2 win %, Q1 + Q2 win %. In each tier every criterion goes to the better team, and whoever wins more of them is ranked higher; the next tier only matters when a tier is even. Ranking is one matchup at a time: teams start in RPI order and each moves up past every team it beats until one beats it (A over B; then C vs. B, and if C wins, C vs. A). That ranks the whole league for the at-large picks, and the field on its own for the seeds. The seed table's **Over next** column shows the tier and criteria that put each team ahead of the next seed, and flags it in red if you've moved a team above one the committee prefers. A collapsible **How the committee compares teams** box on the Selection and Bracketology tabs lists the tiers.
+   - **Seeding:** once confirmed, the **seeds** table (1–16, or the field size) shows each team's record, RPI, Q1–Q4 records and SOS (automatic qualifiers are tagged AQ). **Drag a team by its handle (⠿)** to a new seed; it works with a mouse or a finger, and the page scrolls when you drag near the edge. With a keyboard, focus the handle and press the up or down arrow. The top seeds host, one per regional. Beside it, the **regional preview** (teams, conferences, national seed and RPI rank, average OVR) updates as you move seeds and flags conference rivals in the same regional. The selection board folds up below. "Change teams" goes back to picking; then announce the field.
+   - **Quadrants** follow the AAU National Tournament team sheet: a game's quadrant depends on the opponent's RPI rank and where it was played. The AAU National Tournament's cut-offs (for about 300 teams) are scaled to this league's 61 or 64 teams: Q1 is home vs. RPI 1–5, neutral 1–8, away 1–11; Q2 is home 6–11, neutral 9–15, away 12–20; Q3 is home 12–24, neutral 16–30, away 21–36; Q4 is everything else. The cut-offs rescale if teams are added or removed. For the committee's quadrant rank, wins count 4 / 2 / 1 / ¼ points in Q1 / Q2 / Q3 / Q4 and losses cost 0 / ½ / 2 / 4. Quadrant records are also on Rankings → RPI.
+- **Conference tournament hosts:** every conference tournament is played at one of the conference's schools, picked at random each season (never last year's host when there's another choice). Change it on Postseason → Conference tournaments any time before the tournament ends; games already played stay where they were. Hosting doesn't change the bracket: the host plays its games at home, every other game is at the host's site, and a host that doesn't qualify still hosts.
+- **Bracket cards** show each team's seed (in parentheses) and poll ranking right before its name. Conference tournaments show every seed and the poll ranking; AAU National Tournament games show only the regional hosts' seeds (no poll rankings, so the only numbers are the host seeds). Played games use the ranking from that week's poll.
+- **Participants tab** (between the regionals/super regionals and the World Series): the World Series field as it fills in, with each team's record entering the World Series (conference record in parentheses), head coach, the regional or super regional it won, previous World Series appearances (and the last one), best World Series finish (with the years) and all-time World Series win–loss record. History counts seasons in this dynasty. Places: champion 1st, runner-up 2nd, then by the round a team went out (ties like T-3rd in an 8-team World Series).
+- **Postseason scoreboard:** on the Schedule page each postseason day mixes the tournaments together like a real scoreboard. Each event's games stay in order.
+3. **Regionals**, then **Super Regionals** if the format has them.
+4. **World Series**: opening games Friday, Game 4 Saturday, Games 3 and 5 Sunday, and the bracket finals Monday (both brackets in the 8-team format, which adds an **World Series Finals** week for the Championship Series). In the 4-team format the Championship Series is Monday through Wednesday. On the World Series tab, the 8-team format shows Bracket A and Bracket B docked on the left with the Championship Series centered beside them, its games stacked top to bottom.
+
+The final poll comes out after the championship, with the national champion at #1.
+
+The Postseason page draws each event as a real bracket. Rounds are columns, each game sits between the two games that feed it, and lines join them. Double elimination shows the winners bracket on top and the elimination bracket underneath. Each card shows runs, hits and errors. Click a game, or open the Schedule page, for the full inning-by-inning line score.
+
+## The offseason
+
+Once the national champion is crowned, an **Offseason** page opens. Next season's teams are set up there before any games are scheduled:
+
+- **Realign conferences:** move any team with its Conference menu. Moved teams are marked.
+- **Independents:** pick **Independent** in a team's Conference menu (or when adding a team) for a program with no conference. Independents play no conference games and have no regular-season title, conference tournament or automatic bid, so they reach the AAU National Tournament only as an at-large. Their weekends are non-conference series, mostly against conference teams on a bye week and other independents, plus early-season tournaments. In the rare week nobody is free, they play a Thursday game and get an extra midweek set later. The Standings page lists them in their own **Independents** group by overall record, and the Schedule filter has an Independents button.
+- **Add teams:** each new team gets a full schedule in the new season.
+- **Add conferences** or delete empty ones.
+- **Remove teams** from the dynasty. Their history stays, and you can bring them back before the season starts.
+- **Hot seat:** at the top of the offseason page, a list of suggested firings. Each head coach is measured against what the roster should have done: the team's preseason ratings set an expected winning percentage for that season, and the coach's results this season and over the last three seasons at the school are compared with it. Losing streaks, missing the AAU National Tournament with a roster that should have made it, and finishing at the bottom of the conference add heat. A national title (especially a recent one), a deep postseason run, a conference title, and a coach's first or second season at the school count in their favor (a first-year coach is never suggested for firing, at most the hot seat). Coaches are marked **Fire suggested**, **Hot seat** or **Warm** (warm seats are folded away), with the reasons listed. It's only advice: **Fire** opens the job, **Keep** marks the coach as kept for this offseason, and nothing happens on its own.
+- **Coaching carousel:** a panel at the top lists open jobs, available coaches, and every move made this offseason (hires, coaches hired away from another program, firings). "Find a coach" or "Change" opens a candidate list with each coach's career record, AAU National Tournament and World Series trips and titles; hiring a coach from another program opens that job. ✕ fires a coach, who stays in the dynasty as available.
+- **Rating points:** each returning team earns an allotment of rating points for the new season. A winning record earns points, beating what the team's ratings predicted earns more, and a deep postseason run earns more again. Teams already near the top lose some to graduation (everyone is pulled a little toward 70), and there's some luck. Points start unplaced: the Points column lists what each team has to place (or take off, for negative points), and you use − and + on OFF, PIT and DEF to place them. **Auto** places a team's remaining points at random (keeping what you've placed), **Reset** undoes its placements, and the buttons above the teams do the same for everyone. Points not placed when the season starts are lost.
+- **Coach prestige:** every coach has a prestige rating from 0 to 100 (50 is an average head coach), built from his career in the dynasty: winning percentage, how often his teams make the AAU National Tournament, trips to the championship site and national titles. A short career counts for less. Labels: Elite (80+), Proven (66+), Solid (54+), Average (44+), Struggling. Prestige adds to (or takes from) a team's offseason rating points: about one point per 10 prestige above or below 50 for a coach who stays (×0.75), and **double that for a new hire** (×1.5). A new hire's first year is **a roll**, though: his points are multiplied by how the fit turns out (shown as Great fit, Good fit, Slow start or Rough fit; roughly 3 in 10 take off and 1 in 7 flop), and a bigger program magnifies it either way. The fit is fixed for that school, coach and year. An open job costs a point. The Points column shows the split (results vs. coach), each coach shows a prestige badge (and **New** if hired this offseason), and the hiring window lists every candidate's prestige and the points he's expected to add to that school. The coach points update the moment you hire or fire.
+- **Program prestige:** every school has a prestige from 0 to 100 (50 is average) built from its recent history: winning percentage, AAU National Tournament bids, World Series trips, national titles and final poll ranks, with each year back counting 75% as much, so prestige rises and fades. A school with little history leans on its current talent. Labels: Blue blood (80+), Power (65+), Established (52+), Middle (40+), Building. Prestige adds about one offseason rating point per 13 above or below 50 (a blue blood gets +3 a year, a building program −2 or −3), which keeps true powers near the top while regression and luck still bring most hot teams back. It shows under each team in the offseason, in the Points split (results · program · coach) and on the team page's Program history.
+
+**Start the season** builds the new schedule from the new alignment. The final poll seeds the next preseason poll.
+
+## Coaches
+
+Coaches are people in the dynasty, not just names on a team. Each coach has a **profile page** with his career record, titles, a season-by-season table across every program he has led, and a way to hire him if he's available. The **Coaches** page lists every coach with his current program, seasons, record, conference tournament titles, AAU National Tournament trips, World Series trips, national titles and career path. Coaches without a job stay on the list as available, so another program can hire them later. You can add or rename coaches there. Click any column header to sort by it (click again to flip the order).
+
+The **Teams** page lists every team ranked by OVR, with a # column. Click any header (team, coach, conference, OFF, PIT, DEF, OVR, record, poll) to re-sort.
+
+## Conference and team history
+
+- **Conference pages** show the conference's all-time record against other conferences (and against each one), AAU National Tournament bids and national titles, then a full-width **Champions by season** table: regular-season champions with their conference records (shared titles listed together), the tournament champion, format and host, the conference's record against other conferences that year, AAU National Tournament bids, AAU National Tournament win–loss and its best finish. **Members, all-time** lists every team that has played in the conference with its conference and overall record there, titles, AAU National Tournament trips and World Series trips, with the seasons it was a member. Former members get their own list below the current ones. Click any column header to sort both lists.
+- **Team schedules:** a team's season tab lists its games as rows, like a college athletics site. Each row has a date block in the team's color (day and date; week 1 is the first week of May, the week of its first Thursday), both logos with *vs.* or *at*, the team's own rank and the opponent's rank at game time, where the game is played (the city and field: the home team's, the host's for early-season tournaments, conference tournaments, regionals and super regionals, or the World Series stadium), and the result (W or L, the score, and innings if not 7). Early-season tournaments, the conference tournament, regionals, super regionals and the World Series each get a dark header bar. Click a row (or press Enter on it) for the box score.
+- **Team pages:** the dynasty record shows which conference the team was in each season, and a **Postseason** column with where the season ended: the regional and the round the team went out (for example **Gainesville Regional · out in Regional final**), a super regional and the series score, how far it went in the World Series, or national champion. Click it to open that bracket on the Postseason page. Underneath are the team's **AAU National Tournament record** and its **conference tournament record** with the round it went out (or champion), which links to that bracket too. Coach pages show the same.
+- **Brackets** are drawn with long, thin game cards showing just the final score (click a game for the full line score with hits and errors). The game's status (final, or the favorite and a sim button) sits in the card's top row, and each winner's row is shaded, starting just after the logo, in a gradient of its team color with black or white text, whichever reads better.
+
+## Records
+
+The **Records** page is the dynasty's record book, covering every season in the league (a season still in progress is marked *):
+
+- **Programs, all-time:** seasons, wins, winning percentage, regular-season titles (shared titles count), conference tournament titles, AAU National Tournament appearances, World Series appearances and national titles. Click any column to sort.
+- **Single season:** most wins, best winning percentage, most runs scored, fewest runs allowed, best run differential, longest winning streak, best conference record, and most losses by a national champion.
+- **Single game:** most runs, most hits, largest margin of victory, most combined runs, longest games (extra innings) and every no-hitter.
+- **Coaches:** career wins, career winning percentage, national titles and World Series appearances.
+
+Everything is worked out from the games, so it updates as you play and includes the postseason.
+
+## Commissioner controls
+
+| Want to… | Where |
+|---|---|
+| Enter or change a score | Click the game (Schedule, Postseason, team page) |
+| Change ratings | Teams page, or the team's profile |
+| Add a team | Offseason (full schedule), or Teams → + Add team mid-season |
+| Realign conferences | Offseason → Conference menus |
+| Change a head coach | Teams page, team profile, or Offseason (dropdown) |
+| Pick a conference tournament format | Standings → Commissioner, or Postseason before it starts |
+| Rename a team, change colors, logo, home field or conference | Team profile → Commissioner edits |
+| Add or rename a conference, set its logo | Conferences |
+| Add a game | Schedule → + Add game |
+| Override a conference champion or tournament size | Standings → Commissioner |
+| Edit tournament seeds | Postseason → Conference tournaments |
+| Change the national field or seeds | Postseason → Selection |
+| Edit a poll | Rankings → Edit poll |
+| New schedule (before any games) | Settings → Rebuild schedule |
+| Season length, midweek format | Settings → Schedule format |
+| Regionals, qualifiers, super regionals, World Series size | Settings → AAU National Tournament |
+
+## Logos
+
+Teams start with the school logos from the owner's AAU Dynasty, and Settings → Backups can bring in newer ones from an AAU Dynasty backup. Other logos come from [this college logo list](https://gist.github.com/saiemgilani/c6596f0e1c8b148daabc2b7f1e6f6add), which points to ESPN's images, and are cached in your browser. Schools it doesn't cover, mostly ones without football, show a badge in their colors with their abbreviation. You can give any team or conference its own logo by pasting an image link or uploading a file on its page.
+
+## Run it on GitHub Pages
+
+1. Put these files in the repository's `main` branch, keeping the folders (`index.html`, `css/`, `js/`, `.nojekyll`).
+2. Go to **Settings → Pages**, set **Source** to *Deploy from a branch*, and choose `main` and `/ (root)`.
+3. After a minute, the site is live at `https://<your-username>.github.io/<repo-name>/`.
+
+To run it locally, serve the folder with any static server. Opening `index.html` straight from disk won't work.
+
+```bash
+python3 -m http.server 8000   # then open http://localhost:8000
+```
+
+## Where your data lives
+
+The dynasty is saved in your browser (IndexedDB). **Settings → Download backup** saves the whole league as a JSON file, and **Restore backup** loads one, which is also how you move to another device.
+
+## Project layout
+
+```
+index.html              app shell
+css/styles.css          styles (light and dark)
+js/app.js               loading, top bar, routing
+js/ui.js                shared pieces: team labels, logos, game cards, game editor
+js/views-season.js      home, schedule, standings, rankings, postseason pages
+js/views-league.js      teams, team profiles, conferences, history, settings
+js/views-records.js     records page
+js/records.js           record book (programs, seasons, games, coaches)
+js/data.js              the 2030 softball and baseball teams, conferences, coaches, ratings
+js/logo-import.js       logos from the AAU Dynasty
+js/sim.js               plate-appearance game simulator and win probability
+js/schedule.js          schedule generator
+js/standings.js         records, standings, tiebreakers, RPI
+js/polls.js             voter panel and generated polls
+js/ratings.js           in-season rating movement
+js/postseason.js        conference tournaments, selection, regionals, World Series
+js/league.js            league lifecycle, editing, simulation, new seasons
+js/store.js             saving and backups
+js/logos.js             logo list loading and lookup
+tests/                  logic test (Node) and UI test (Playwright)
+tools/stamp.py          version-stamps file links before each release
+tools/check.sh          checks every module parses before a release
+```
+
+Before committing changes, run `python3 tools/stamp.py`. It adds a version to every script and stylesheet link so browsers load a matching set of files after an update instead of mixing cached old files with new ones.
+
+Run the tests with `node tests/logic.test.mjs` and `python3 tests/ui_test.py`. The UI test needs `pip install playwright` and `playwright install chromium`.
