@@ -1,19 +1,19 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261103124030';
-import { AAU_SCHOOLS } from './aau-schools.js?v=20261103124030';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText } from './ui.js?v=20261103124030';
-import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103124030';
-import { ovr, gameRules } from './sim.js?v=20261103124030';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103124030';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103124030';
-import { hotSeat, HEAT } from './hotseat.js?v=20261103124030';
-import { setRating } from './ratings.js?v=20261103124030';
-import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103124030';
-import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261103124030';
-import { exportLeague, clearLeague } from './store.js?v=20261103124030';
-import { clamp, fmtPct } from './util.js?v=20261103124030';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103124030';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261103125841';
+import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261103125841';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText } from './ui.js?v=20261103125841';
+import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261103125841';
+import { ovr, gameRules } from './sim.js?v=20261103125841';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261103125841';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261103125841';
+import { hotSeat, HEAT } from './hotseat.js?v=20261103125841';
+import { setRating } from './ratings.js?v=20261103125841';
+import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261103125841';
+import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261103125841';
+import { exportLeague, clearLeague } from './store.js?v=20261103125841';
+import { clamp, fmtPct } from './util.js?v=20261103125841';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261103125841';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -179,15 +179,29 @@ function teamForm(teams, { note = null, after = () => {}, conference = null } = 
 }
 
 function conferenceForm(after = () => {}) {
+  // AAU conferences not in this dynasty yet (or retired): picking one fills
+  // in its name, abbreviation and color, and it gets its logo.
+  const confPick = Object.keys(AAU_CONFERENCES).filter(c => !ctx.league.conferences[c] || ctx.league.conferences[c].retired);
   modal.innerHTML = `<div class="modal-head"><h2>Add a conference</h2><button class="btn ghost" data-x>✕</button></div>
-    <div class="modal-body stack"><div class="row"><label class="field" style="flex:1;min-width:160px">Name <input type="text" id="cf-name" placeholder="e.g. West Coast"></label>
+    <div class="modal-body stack">${confPick.length ? `<div class="row"><label class="field" style="flex:1;min-width:200px">AAU conference <select id="cf-aau"><option value="">Pick an AAU conference not in the dynasty yet…</option>${confPick.map(c => `<option>${esc(c)}</option>`).join('')}</select></label></div>` : ''}<div class="row"><label class="field" style="flex:1;min-width:160px">Name <input type="text" id="cf-name" placeholder="e.g. West Coast"></label>
       <label class="field" style="width:90px">Abbr. <input type="text" id="cf-abbr" maxlength="5"></label><label class="field">Color <input type="color" id="cf-color" value="#2C5F8A"></label></div>
       <p class="small muted">Then move teams into it. Each conference gets an automatic bid to the AAU National Tournament.</p></div>
     <div class="modal-foot"><span class="spacer"></span><button class="btn" data-x>Cancel</button><button class="btn primary" id="cf-save">Add conference</button></div>`;
   $$('[data-x]', modal).forEach(b => (b.onclick = () => modal.close()));
   modal.onclose = () => ctx.render();
+  const pickC = $('#cf-aau', modal);
+  if (pickC) pickC.onchange = () => {
+    const x = AAU_CONFERENCES[pickC.value];
+    if (!x) return;
+    $('#cf-name', modal).value = pickC.value; $('#cf-abbr', modal).value = x.abbr; $('#cf-color', modal).value = x.color.toLowerCase();
+  };
   $('#cf-save', modal).onclick = () => {
-    try { addConference(ctx.league, $('#cf-name', modal).value, { abbr: $('#cf-abbr', modal).value.trim().toUpperCase() || undefined, color: $('#cf-color', modal).value }); }
+    try {
+      const name = $('#cf-name', modal).value.trim();
+      addConference(ctx.league, name, { abbr: $('#cf-abbr', modal).value.trim().toUpperCase() || undefined, color: $('#cf-color', modal).value });
+      const x = AAU_CONFERENCES[name], c = ctx.league.conferences[name];
+      if (x && c && !c.logo) Object.assign(c, { logo: x.logo, altColor: c.altColor || x.altColor });
+    }
     catch (e) { return toast(e.message, true); }
     after(); modal.close(); changed({ progress: false }); toast('Conference added.');
   };
