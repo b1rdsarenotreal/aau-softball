@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261102225427';
-import { START_YEAR, CONFERENCES, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261102225427';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261102225427';
-import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261102225427';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261102225427';
-import { replayRatings, ensureBase } from './ratings.js?v=20261102225427';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261102225427';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261102225427';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261102225427';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261102232813';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261102232813';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261102232813';
+import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261102232813';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261102232813';
+import { replayRatings, ensureBase } from './ratings.js?v=20261102232813';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261102232813';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261102232813';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261102232813';
 
 export const SCHEMA_VERSION = 4;
 
@@ -542,6 +542,12 @@ export function ensureIndependent(league) {
 
 export function migrateLeague(league) {
   ensureIndependent(league);
+  // Conferences still on a drawn logo the owner has since replaced with a
+  // link (CONF_LOGO_LINKS) take the link; logos set by hand stay.
+  for (const c of Object.values(league.conferences || {})) {
+    const m = /^img\/conf\/(\w+)\.svg$/.exec(c?.logo || '');
+    if (m && CONF_LOGO_LINKS[m[1]]) { c.logo = CONF_LOGO_LINKS[m[1]]; league.migrated = true; }
+  }
   sortConferences(league);
   // Home fields for teams saved before they existed.
   for (const teams of [...Object.values(league.seasons || {}).map(se => se.teams), ...(league.draft ? [league.draft.teams] : [])]) for (const t of Object.values(teams || {})) fillSite(t);

@@ -22,7 +22,7 @@
 // baseball coaches list and softball programs list, school sites). Home
 // fields are each program's real field where known.
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261102225427';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261102232813';
 
 export const START_YEAR = 2030;
 
@@ -32,17 +32,27 @@ export const SIDES = {
 };
 export const sideOf = league => (league?.side === 'baseball' ? 'baseball' : 'softball');
 
+// Conference logos the owner picked from the web (linked, not copied; the
+// drawn ones in img/conf/ stay for CAC, SWC, UCAA and as fallbacks).
+export const CONF_LOGO_LINKS = {
+  bigten: 'https://content.sportslogos.net/logos/153/4661/full/big_ten_conference_logo_primary_20115933.png',
+  ivy: 'https://content.sportslogos.net/logos/153/4824/full/ivy_league_logo_primary_2019_sportslogosnet-9024.png',
+  metro: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/METRO_Primary_LtBG.png/500px-METRO_Primary_LtBG.png',
+  pac10: 'https://content.sportslogos.net/logos/153/4945/full/pacific-10_conference_logo_wordmark_1995_sportslogosnet-1134.png',
+  uaa: 'https://dbukjj6eu5tsf.cloudfront.net/uaasports.info/images/responsive_2023/logo-main.svg',
+};
+
 // The owner's AAU conferences, each with a drawn logo (img/conf/, made by
 // tools/conf_logos.py; transparent backgrounds).
 export const CONFERENCES = {
-  "Big Ten": {"abbr": "B1G", "color": "#0088CE", "altColor": "#0B2A4A", "logo": "img/conf/bigten.svg"},
+  "Big Ten": {"abbr": "B1G", "color": "#0088CE", "altColor": "#0B2A4A", "logo": CONF_LOGO_LINKS.bigten},
   "Coastal Atlantic Conference": {"abbr": "CAC", "color": "#3A4A5C", "altColor": "#5CC6C2", "logo": "img/conf/cac.svg"},
-  "Ivy League": {"abbr": "IVY", "color": "#026937", "altColor": "#C9B37E", "logo": "img/conf/ivy.svg"},
-  "Metro Conference": {"abbr": "METRO", "color": "#E03A3E", "altColor": "#23262D", "logo": "img/conf/metro.svg"},
-  "Pacific-10 Conference": {"abbr": "P10", "color": "#092346", "altColor": "#D6A84B", "logo": "img/conf/pac10.svg"},
+  "Ivy League": {"abbr": "IVY", "color": "#026937", "altColor": "#C9B37E", "logo": CONF_LOGO_LINKS.ivy},
+  "Metro Conference": {"abbr": "METRO", "color": "#E03A3E", "altColor": "#23262D", "logo": CONF_LOGO_LINKS.metro},
+  "Pacific-10 Conference": {"abbr": "P10", "color": "#092346", "altColor": "#D6A84B", "logo": CONF_LOGO_LINKS.pac10},
   "Southwest Conference": {"abbr": "SWC", "color": "#719AE8", "altColor": "#F28C38", "logo": "img/conf/swc.svg"},
   "UC Athletic Association": {"abbr": "UCAA", "color": "#0F6E7A", "altColor": "#F2C14E", "logo": "img/conf/ucaa.svg"},
-  "University Athletic Association": {"abbr": "UAA", "color": "#003087", "altColor": "#F2B33D", "logo": "img/conf/uaa.svg"},
+  "University Athletic Association": {"abbr": "UAA", "color": "#003087", "altColor": "#F2B33D", "logo": CONF_LOGO_LINKS.uaa},
 };
 
 // [school, conference, abbr, mascot, color, altColor, OVR, home field, city, head coach]
