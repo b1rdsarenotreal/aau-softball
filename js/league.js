@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261104005033';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261104005033';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261104005033';
-import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261104005033';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261104005033';
-import { replayRatings, ensureBase } from './ratings.js?v=20261104005033';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261104005033';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261104005033';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261104005033';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261104164505';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261104164505';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261104164505';
+import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261104164505';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261104164505';
+import { replayRatings, ensureBase } from './ratings.js?v=20261104164505';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261104164505';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261104164505';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261104164505';
 
 export const SCHEMA_VERSION = 4;
 

@@ -31,6 +31,10 @@ that rule doesn't include this repo.)
   Charles Schwab Field, Omaha; softball's is the Women's College World Series
   at Devon Park, Oklahoma City.
 - Inning counts on screen come from `settings.innings`; never hardcode 7.
+- Seeds on screen: at a regional every team shows its regional seed, 1 to
+  the regional's size (`regionalSeed`; regionals of 2 to 8); super regional
+  hosts show their national seed; at the World Series only national seeds
+  1 to `wsSize` show (`shownSeed(season, team, 'mcws')`).
 
 ## Owner's rules
 

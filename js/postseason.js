@@ -12,10 +12,10 @@
 //     bracket winners).
 // The format is locked into the season when the field is announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261104005033';
-import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261104005033';
-import { generatePoll } from './polls.js?v=20261104005033';
-import { hashStr } from './util.js?v=20261104005033';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261104164505';
+import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261104164505';
+import { generatePoll } from './polls.js?v=20261104164505';
+import { hashStr } from './util.js?v=20261104164505';
 
 // ---------- tournament format ----------
 
@@ -29,13 +29,19 @@ export function ncaaConfig(season) {
   return { ...DEFAULT_NCAA, ...(season.post?.cfg || season.settings?.ncaa || {}) };
 }
 
+// A team's seed inside its regional, 1 (the host) to the regional's size.
+export function regionalSeed(season, team) {
+  const ev = season.post?.regionals?.find(e => e.seeds.includes(team));
+  return ev ? ev.seeds.indexOf(team) + 1 : null;
+}
 // The national seed shown for a team: only the regional hosts (the top
-// national seeds, one per regional) carry a seed on screen. Everyone else is
-// still seeded for building the regionals, just not displayed.
-export function shownSeed(season, team) {
-  const p = season.post;
+// national seeds, one per regional) carry a seed on screen, and at the World
+// Series only the top seeds, one per World Series spot (1 to 8). Everyone
+// else is still seeded for building the bracket, just not displayed.
+export function shownSeed(season, team, stage) {
+  const p = season.post, cfg = ncaaConfig(season);
   const f = p?.field?.find(x => x.team === team);
-  return f && f.seed <= ncaaConfig(season).regionals ? f.seed : null;
+  return f && f.seed <= (stage === 'mcws' ? cfg.wsSize : cfg.regionals) ? f.seed : null;
 }
 
 // Problems with a format, in plain words (empty when it works).
@@ -43,7 +49,7 @@ export function ncaaProblems(cfg, teamCount) {
   const out = [];
   if (![4, 8].includes(cfg.wsSize)) out.push('The World Series must have 4 or 8 teams.');
   if (cfg.regionals !== cfg.wsSize && cfg.regionals !== cfg.wsSize * 2) out.push(`With a ${cfg.wsSize}-team World Series there must be ${cfg.wsSize} regionals (winners go straight to the World Series) or ${cfg.wsSize * 2} (winners meet in super regionals).`);
-  if (!(cfg.perRegional >= 2 && cfg.perRegional <= 6)) out.push('Each regional needs 2 to 6 teams.');
+  if (!(cfg.perRegional >= 2 && cfg.perRegional <= 8)) out.push('Each regional needs 2 to 8 teams.');
   if (fieldSize(cfg) > teamCount) out.push(`That's ${fieldSize(cfg)} qualifiers, but there are only ${teamCount} teams.`);
   return out;
 }

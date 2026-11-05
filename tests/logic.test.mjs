@@ -3,7 +3,7 @@ import { confWeeksFor } from '../js/schedule.js';
 import assert from 'node:assert/strict';
 import { estimateHE, backfillHitsErrors, applyResult, afterChange, newSeason, pointsLeft } from '../js/league.js';
 import { migrateLeague } from '../js/league.js';
-import { gameVenue, citySiteNames } from '../js/postseason.js';
+import { gameVenue, citySiteNames, regionalSeed } from '../js/postseason.js';
 import { deleteConference, newLeague, currentSeason, simGames, startNextSeason, addTeam, addConference, renameTeam, beginOffseason, draftRemoveTeam, draftWarnings, coachName, weekName, hireCoach, newCoach, availableCoaches } from '../js/league.js';
 import { bracketology, selectionBoard, setAtLarge, confirmField, mcwsPlaces, mcwsHistory, setConfHost, shownSeed, setConfFormat, postWeeks, wsTeams, ncaaProblems, fieldSize } from '../js/postseason.js';
 import { records, rpi, confStandings, isFinal, regSeasonChamps, regSeasonChamp, quadrants } from '../js/standings.js';
@@ -850,4 +850,19 @@ runFormat({ regionals: 16, perRegional: 2, wsSize: 8 }, se => {
   assert.ok(sb.teams.Caltech.logoOverride.includes('Caltech_beavers'));
   assert.ok(currentSeason(newLeague()).teams['Boston University'].logoOverride.includes('boston_university'));
 }
+// Seeds: every team in a regional is seeded 1 to the regional's size (up to
+// 8), and at the World Series only national seeds 1-8 show.
+for (const nc of [{ regionals: 8, perRegional: 4, wsSize: 8 }, { regionals: 8, perRegional: 8, wsSize: 8 }, { regionals: 16, perRegional: 4, wsSize: 8 }]) {
+  const L = newLeague({ side: 'baseball' }), s = currentSeason(L);
+  s.settings.ncaa = nc;
+  assert.deepEqual(ncaaProblems(nc, Object.keys(s.teams).length), [], JSON.stringify(nc));
+  simGames(s, undefined, { autoLock: true, max: 20000 });
+  assert.equal(s.phase, 'complete', JSON.stringify(nc));
+  for (const ev of s.post.regionals) assert.deepEqual(ev.seeds.map(t => regionalSeed(s, t)), ev.seeds.map((_, i) => i + 1));
+  for (const t of wsTeams(s)) {
+    const nat = s.post.field.find(f => f.team === t).seed;
+    assert.equal(shownSeed(s, t, 'mcws'), nat <= 8 ? nat : null, `${t} (national seed ${nat})`);
+  }
+}
+
 console.log(`all checks ok in ${Date.now() - t0} ms`);
