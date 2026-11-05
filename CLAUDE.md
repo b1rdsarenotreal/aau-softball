@@ -24,7 +24,8 @@ that rule doesn't include this repo.)
 - Baseball is softball with these settings: 9 innings (`innings`), the
   10-run rule after 7, no runner-on-second tiebreaker, about a third as many
   preseason tournaments (`tourneyShare` 0.35, weeks 1–2), 4-game Thu–Sun
-  non-conference series (`nonConfSeriesGames`), 3-game conference series,
+  non-conference series (`nonConfSeriesGames`) until conference play begins,
+  3-game ones after, 3-game conference series,
   midweek from week 2 in about two weeks of three (`midweekFreq: 'most'`), mostly a single Tuesday game and
   sometimes a Tuesday–Wednesday pair (`midweek: 'mostly-single'`), never a
   midweek doubleheader. The World Series is the College World Series at

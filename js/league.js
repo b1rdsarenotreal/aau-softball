@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261104170330';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261104170330';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261104170330';
-import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261104170330';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261104170330';
-import { replayRatings, ensureBase } from './ratings.js?v=20261104170330';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261104170330';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261104170330';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261104170330';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261104190307';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261104190307';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261104190307';
+import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261104190307';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261104190307';
+import { replayRatings, ensureBase } from './ratings.js?v=20261104190307';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261104190307';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261104190307';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261104190307';
 
 export const SCHEMA_VERSION = 4;
 
@@ -51,7 +51,7 @@ export function newLeague({ side = 'softball', name = SIDES[side === 'baseball' 
     schema: SCHEMA_VERSION, name, currentYear: year,
     conferences: JSON.parse(JSON.stringify(conferences)),
     coaches: {}, nextCoachId: 1,
-    seasons: { [year]: season }, side, logoSet: AAU_LOGO_SET, midweekMost: true,
+    seasons: { [year]: season }, side, logoSet: AAU_LOGO_SET, midweekMost: true, ncSeriesVersion: 2,
   };
   ensureIndependent(league);
   for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
@@ -542,6 +542,14 @@ export function ensureIndependent(league) {
 
 export function migrateLeague(league) {
   ensureIndependent(league);
+  // Four-game non-conference series stop once conference play begins (the
+  // owner's rule, Nov. 2026): a current season with no game played yet gets
+  // a new schedule; others keep theirs, and later seasons follow the rule.
+  if ((league.ncSeriesVersion || 0) < 2) {
+    const se = league.seasons?.[league.currentYear];
+    if (se?.settings?.nonConfSeriesGames === 4 && !se.games.some(g => g.type === 'regular' && isFinal(g)) && !league.draft) rebuildSchedule(se, league.seasons[se.year - 1] || null);
+    league.ncSeriesVersion = 2; league.migrated = true;
+  }
   // Conferences still on a drawn logo the owner has since replaced with a
   // link (CONF_LOGO_LINKS) take the link; logos set by hand stay.
   for (const c of Object.values(league.conferences || {})) {

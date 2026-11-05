@@ -798,14 +798,17 @@ runFormat({ regionals: 16, perRegional: 2, wsSize: 8 }, se => {
     if (n > 9) extras++;
   }
   console.log(`baseball: ${extras} of 400 sample games went to extras`);
-  // Schedule: non-conference series are 4 games Thursday-Sunday, conference series 3.
+  // Schedule: non-conference series are 4 games Thursday-Sunday until
+  // conference play begins, then 3 games Friday-Sunday; conference series 3.
   const reg = sb.games.filter(g => g.type === 'regular');
+  const confStart = Math.min(...reg.filter(g => g.confGame).map(g => g.week));
   const series = {};
   for (const g of reg.filter(g => g.series && !g.midweek)) (series[g.series] ||= []).push(g);
   for (const gs of Object.values(series)) {
     const days = gs.map(g => g.day).join(' ');
     if (gs[0].confGame) assert.equal(gs.length, 3, 'conference series: 3 games');
-    else assert.equal(days, 'Thu Fri Sat Sun', 'non-conference series: 4 games, Thursday-Sunday');
+    else if (gs[0].week < confStart) assert.equal(days, 'Thu Fri Sat Sun', 'non-conference series before conference play: 4 games, Thursday-Sunday');
+    else assert.equal(gs.length, 3, 'non-conference series once conference play begins: 3 games');
   }
   // Far fewer tournaments: about a third of the teams play one, nobody two.
   const tIn = {};
@@ -863,6 +866,17 @@ for (const nc of [{ regionals: 8, perRegional: 4, wsSize: 8 }, { regionals: 8, p
     const nat = s.post.field.find(f => f.team === t).seed;
     assert.equal(shownSeed(s, t, 'mcws'), nat <= 8 ? nat : null, `${t} (national seed ${nat})`);
   }
+}
+
+// Baseball: 4-game Thursday-Sunday non-conference series until conference
+// play begins, 3-game Friday-Sunday ones after.
+{
+  const s = currentSeason(newLeague({ side: 'baseball' })), reg = s.games.filter(g => g.type === 'regular');
+  const start = Math.min(...reg.filter(g => g.confGame).map(g => g.week));
+  const ser = {};
+  for (const g of reg) if (g.series && !g.confGame && !['Tue', 'Wed'].includes(g.day)) (ser[g.series] ||= []).push(g);
+  assert.ok(Object.values(ser).some(gs => gs.length === 4 && gs[0].week < start));
+  for (const gs of Object.values(ser)) assert.equal(gs.length, gs[0].week < start ? 4 : 3, `week ${gs[0].week}`);
 }
 
 console.log(`all checks ok in ${Date.now() - t0} ms`);

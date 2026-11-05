@@ -19,9 +19,9 @@
 // teams that played fewer weekend games getting a few more so season totals
 // stay close together.
 
-import { isIndependent } from './standings.js?v=20261104170330';
-import { cityPoint, miles } from './geo.js?v=20261104170330';
-import { rng, shuffle, hashStr } from './util.js?v=20261104170330';
+import { isIndependent } from './standings.js?v=20261104190307';
+import { cityPoint, miles } from './geo.js?v=20261104190307';
+import { rng, shuffle, hashStr } from './util.js?v=20261104190307';
 
 export const DEFAULT_REG_WEEKS = 12;
 export const DEFAULT_MIDWEEK_START = 4;
@@ -261,13 +261,15 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
     return r() < 0.5 ? [a, b] : [b, a];
   };
   // Non-conference weekend series are 3 games (Friday–Sunday) or, with
-  // nonConfSeriesGames 4 (baseball), 4 games Thursday–Sunday. Conference
-  // series are always 3.
+  // nonConfSeriesGames 4 (baseball), 4 games Thursday–Sunday until
+  // conference play begins (the first week any conference plays), then 3.
+  // Conference series are always 3.
   const NC = season.settings?.nonConfSeriesGames === 4 ? 4 : 3;
+  let confStart = Infinity;
   const addSeries = (week, home, away, conf) => {
     const sid = `${season.year}-${seriesNo++}`;
     const fmt = conf ? season.settings?.confWeekend?.[teams[home].conference] : null;
-    const slots = !conf && NC === 4 ? ['Thu', 'Fri', 'Sat', 'Sun'].map(day => ({ day, order: DAY_ORDER[day], dh: 0 })) : seriesDays(fmt, sid);
+    const slots = !conf && NC === 4 && week < confStart ? ['Thu', 'Fri', 'Sat', 'Sun'].map(day => ({ day, order: DAY_ORDER[day], dh: 0 })) : seriesDays(fmt, sid);
     for (const slot of slots) {
       games.push(blankGame(season, { week, ...slot, home, away, confGame: conf, series: sid }));
     }
@@ -295,6 +297,7 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
     const first = REG - rounds.length + 1;
     rounds.forEach((pairs, i) => { (weekPairs[first + i] ||= []).push(...pairs.filter(([a, b]) => a && b).map(p => [...p, conf])); });
   }
+  confStart = Math.min(Infinity, ...Object.keys(weekPairs).map(Number));
 
   // ---- early-season tournaments: who plays in which week ----
   const TW = Math.max(0, Math.min(season.settings?.tourneyWeeks ?? DEFAULT_TOURNEY_WEEKS, REG));

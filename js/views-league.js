@@ -1,19 +1,19 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261104170330';
-import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261104170330';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, seasonLabel, seasonSpan } from './ui.js?v=20261104170330';
-import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261104170330';
-import { ovr, gameRules } from './sim.js?v=20261104170330';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261104170330';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261104170330';
-import { hotSeat, HEAT } from './hotseat.js?v=20261104170330';
-import { setRating } from './ratings.js?v=20261104170330';
-import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261104170330';
-import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261104170330';
-import { exportLeague, clearLeague } from './store.js?v=20261104170330';
-import { clamp, fmtPct } from './util.js?v=20261104170330';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261104170330';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261104190307';
+import { AAU_SCHOOLS, AAU_CONFERENCES } from './aau-schools.js?v=20261104190307';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, seasonLabel, seasonSpan } from './ui.js?v=20261104190307';
+import { isFinal, winnerOf, records, rpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261104190307';
+import { ovr, gameRules } from './sim.js?v=20261104190307';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261104190307';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel } from './league.js?v=20261104190307';
+import { hotSeat, HEAT } from './hotseat.js?v=20261104190307';
+import { setRating } from './ratings.js?v=20261104190307';
+import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261104190307';
+import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261104190307';
+import { exportLeague, clearLeague } from './store.js?v=20261104190307';
+import { clamp, fmtPct } from './util.js?v=20261104190307';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261104190307';
 
 const ui = { confFilter: '', ncaaDraft: null, teamSort: { k: 'ovr', dir: -1 }, coachSort: { k: 'now', dir: -1 }, teamTab: 'season', h2hSort: { k: 'g', dir: -1 }, h2hFilter: 'all', memberSort: { k: 'titles', dir: -1 } };
 
@@ -1007,7 +1007,7 @@ export function renderSettings() {
         <label class="field">Midweek sets <select id="s-midfreq">${Object.entries(MIDWEEK_FREQ).map(([k, l]) => `<option value="${k}" ${(cs.midweekFreq ?? 'half') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">Early-season tournaments <select id="s-tw">${[[0, 'None: weekend series only'], [1, 'Week 1'], [2, 'Weeks 1–2'], [3, 'Weeks 1–3'], [4, 'Weeks 1–4']].map(([v, l]) => `<option value="${v}" ${(cs.tourneyWeeks ?? DEFAULT_TOURNEY_WEEKS) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">How many teams play a tournament <select id="s-tshare">${[[0.35, 'About a third (the rest play series)'], [0.6, 'More than half'], [1, 'Every team, one each'], [1.5, 'Every team, about half play two']].map(([v, l]) => `<option value="${v}" ${(cs.tourneyShare ?? 1.5) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        <label class="field">Non-conference weekend series <select id="s-ncg">${[[3, '3 games, Friday–Sunday'], [4, '4 games, Thursday–Sunday']].map(([v, l]) => `<option value="${v}" ${(cs.nonConfSeriesGames ?? 3) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field">Non-conference weekend series <select id="s-ncg">${[[3, '3 games, Friday–Sunday'], [4, '4 games, Thursday–Sunday, until conference play (then 3)']].map(([v, l]) => `<option value="${v}" ${(cs.nonConfSeriesGames ?? 3) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="check"><input type="checkbox" id="s-midskip" ${(cs.midweekSkipLast ?? true) ? 'checked' : ''}> No midweek games in the last regular-season week</label>
         <p class="small">About <b>${gamesEstimate(cs)}</b> games per team.</p>
         <p class="small muted">Used for every new schedule: the next season, or "Rebuild schedule" before any games are played. ${seasonLabel(cur.year)} runs ${regWeeksOf(cur)} weeks. In the early-season tournament weeks, most teams play a Thursday-to-Sunday round robin (5 or 6 teams, no two from the same conference, 4 or 5 games each) at one of the teams' fields; every team plays one or two of them, and the rest play series. Other weekends are three-game series. Midweek sets are two games against one opponent (a Tuesday doubleheader or Tuesday and Wednesday games), about every other week unless you pick every week; teams that played fewer weekend games get a few more. Conference play fills the last weeks. A conference's size sets when it starts (one week per round of its round robin, at most 9 weeks; bigger conferences play 9 of their members), and everyone finishes on the final weekend and nobody plays a non-conference weekend series once their conference season starts. A team with a conference bye plays a non-conference series (or, if nobody's free, a single Thursday game).</p>
