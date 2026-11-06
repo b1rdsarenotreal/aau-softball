@@ -12,10 +12,10 @@
 //     bracket winners).
 // The format is locked into the season when the field is announced.
 
-import { blankGame, DAY_ORDER } from './schedule.js?v=20261104190307';
-import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261104190307';
-import { generatePoll } from './polls.js?v=20261104190307';
-import { hashStr } from './util.js?v=20261104190307';
+import { blankGame, DAY_ORDER } from './schedule.js?v=20261105173554';
+import { records, rpi, confStandings, conferences, isFinal, winnerOf, loserOf, regularSeasonDone, regSeasonChamp, regSeasonChamps, quadrants } from './standings.js?v=20261105173554';
+import { generatePoll } from './polls.js?v=20261105173554';
+import { hashStr } from './util.js?v=20261105173554';
 
 // ---------- tournament format ----------
 
@@ -182,6 +182,23 @@ function doubleElimIfNec(size) {
   for (const n of nodes) n.t = n.depth;
   nodes.push({ key: 'IF', code: 'Final (if necessary)', a: ch.a, b: ch.b, sec: 'F', col: 0, label: 'Final (if necessary)', cond: 'ifnec', day: 'Mon', t: ch.depth + 1 });
   return nodes;
+}
+
+// A regional's first-round matchups for previews, read from the regional's
+// own bracket (regionalNodes): [[seedA, seedB], ...] with seeds 1 to size,
+// in bracket order, and [seed, null] for a team with a first-round bye.
+export function regionalFirstRound(size) {
+  const nodes = regionalNodes(size);
+  const pairs = [], playing = new Set();
+  for (const n of nodes) {
+    const a = n.a?.seed, b = n.b?.seed;
+    if (a == null || b == null) continue;
+    if (a < size && b < size) { pairs.push([a + 1, b + 1]); playing.add(a); playing.add(b); }
+    else if (a < size || b < size) { const k = a < size ? a : b; pairs.push([k + 1, null]); playing.add(k); }
+  }
+  const byes = [];
+  for (let k = 0; k < size; k++) if (!playing.has(k)) byes.push([k + 1, null]);
+  return [...byes, ...pairs];
 }
 
 function regionalNodes(size) {
