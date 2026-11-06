@@ -56,6 +56,13 @@ that rule doesn't include this repo.)
   (`sheet.tiers` empty). `rating(season)` gives the season's index in the
   RPI's shape (value in `rpi`, plus `rank`, `sosRank`); use it, not
   `rpi()`, and `indexName(season)` for on-screen labels.
+- Regionals avoid first-round matchups between conference rivals
+  (`avoidConferenceMatchups` in `js/postseason.js`, the owner's rule): after
+  the serpentine, teams on one seed line trade regionals (lowest lines
+  first), then, as a last resort, a team moves one seed line; the top line
+  never moves. `pods(field, n, season)` applies it, so bracketology, the
+  selection preview and the announced field agree. Bracketology and the
+  preview show each regional's first-round matchups.
 
 ## Before every commit
 

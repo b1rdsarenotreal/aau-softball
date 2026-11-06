@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261105225339';
-import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261105225339';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261105225339';
-import { ovr } from './sim.js?v=20261105225339';
-import { simGames, addGame, weekName } from './league.js?v=20261105225339';
-import { CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261105225339';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, fieldSize, wsTeams, formatSummary, shownSeed, regionalSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261105225339';
-import { fmtPct, hashStr } from './util.js?v=20261105225339';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261105225339';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261106122144';
+import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261106122144';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261106122144';
+import { ovr } from './sim.js?v=20261106122144';
+import { simGames, addGame, weekName } from './league.js?v=20261106122144';
+import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261106122144';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, fieldSize, wsTeams, formatSummary, shownSeed, regionalSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261106122144';
+import { fmtPct, hashStr } from './util.js?v=20261106122144';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261106122144';
 
 // " at Easton Stadium, Los Angeles, Calif." for a host school with a home field.
 const atField = (s, school) => { const t = s.teams[school]; const f = [t?.stadium, t?.city].filter(Boolean).join(', '); return f ? ` at ${esc(f)}` : ''; };
@@ -482,15 +482,16 @@ function renderBracketology(root) {
     return;
   }
   const B = bracketology(s), r = rating(s), recs = cache.recs(), pr = cache.ranks();
+  const sameConfPair = (a, b) => confClashes([[a, b]], s).length > 0;
   const seedOf = Object.fromEntries(B.field.map(f => [f.team, f.seed]));
   const autoSet = new Set(Object.values(B.autos).filter(Boolean));
   const asOf = s.phase === 'regular' ? `after Week ${doneThrough}` : 'today';
   const row = (t, k) => `<div class="bo-row"><span class="bo-seed">${k + 1}</span><span class="bo-team">${team(t, { rank: false, size: 16 })}</span><span>${autoSet.has(t) ? '<span class="badge real" title="Projected automatic bid">AQ</span>' : ''}</span>
     <span class="bo-conf" title="${esc(s.teams[t].conference)}">${confLogo(s.teams[t].conference, 16)}</span><span class="bo-num">${recs[t].w}-${recs[t].l}</span><span class="bo-num muted" title="${indexName(s)} rank">${r[t]?.rank ? `${indexName(s)} ${r[t].rank}` : ''}</span></div>`;
-  const regionals = B.regionals.map(teams => `<div class="card bo-reg"><div class="bo-head"><h3>${esc(teams[0])} Regional</h3><span class="muted small">Host: national seed ${seedOf[teams[0]]}</span></div>${teams.map(row).join('')}</div>`).join('');
+  const regionals = B.regionals.map(teams => `<div class="card bo-reg"><div class="bo-head"><h3>${esc(teams[0])} Regional</h3><span class="muted small">Host: national seed ${seedOf[teams[0]]}</span></div>${regionalFirstRound(teams.length).map(pair => `<div class="bo-pair${pair[1] && sameConfPair(teams[pair[0] - 1], teams[pair[1] - 1]) ? ' clash' : ''}">${pair.map(k => (k == null ? '<div class="bo-row bye"><span class="bo-seed"></span><span class="bo-team muted">Bye</span></div>' : row(teams[k - 1], k - 1))).join('')}</div>`).join('')}</div>`).join('');
   const list = (title, teams, note) => `<div class="bo-list"><h3>${title}</h3>${teams.length ? `<ol>${teams.map(t => `<li>${team(t, { rank: false, size: 16 })} <span class="muted small">${recs[t].w}-${recs[t].l} · ${indexName(s)} ${r[t]?.rank ?? '–'}</span></li>`).join('')}</ol>` : '<p class="muted small">—</p>'}${note ? `<p class="small muted">${note}</p>` : ''}</div>`;
   const autoList = Object.entries(B.autos).filter(([, t]) => t).sort((a, b) => a[0].localeCompare(b[0]));
-  root.innerHTML = `<div class="hint">Projected ${asOf}: ${B.field.length} teams in ${B.cfg.regionals} regionals. Automatic bids go to each conference's current leader${s.phase === 'conf' ? ' (or tournament champion)' : ''}; at-large spots and seeds come from the committee's team-by-team comparisons (see below), and teams below .500 can't take an at-large spot. It changes as games are played.${B.fill.length ? ` <b>Too few at-large candidates are .500 or better to fill the field, so the best of the rest take the last ${B.fill.length} spot${B.fill.length > 1 ? 's' : ''}: ${B.fill.map(esc).join(', ')}.</b>` : ''}</div>
+  root.innerHTML = `<div class="hint">Projected ${asOf}: ${B.field.length} teams in ${B.cfg.regionals} regionals. Teams on the same seed line trade places so conference rivals don't meet in the first round, if any swap allows it. Automatic bids go to each conference's current leader${s.phase === 'conf' ? ' (or tournament champion)' : ''}; at-large spots and seeds come from the committee's team-by-team comparisons (see below), and teams below .500 can't take an at-large spot. It changes as games are played.${B.fill.length ? ` <b>Too few at-large candidates are .500 or better to fill the field, so the best of the rest take the last ${B.fill.length} spot${B.fill.length > 1 ? 's' : ''}: ${B.fill.map(esc).join(', ')}.</b>` : ''}</div>
     <div class="bo-layout">
       <div class="bo-grid">${regionals}</div>
       <aside class="card bo-side">
@@ -913,7 +914,7 @@ function renderField(root) {
       ${editable ? '<div class="row" style="margin-top:12px;gap:8px"><button class="btn primary" id="f-lock">Announce field & start regionals</button><button class="btn" id="f-unconfirm">Change teams</button></div>' : ''}`
       : `<p class="muted small">Pick the at-large teams and confirm them, then set the seeds here.</p>`}
   </div>`;
-  const podList = pods(field, cfg.regionals);
+  const podList = pods(field, cfg.regionals, s);
   root.innerHTML = `
     ${editable ? `<div class="hint">1. Pick the at-large teams (automatic qualifiers are in). 2. Confirm the ${B.size} teams. 3. Order seeds 1–${B.size}; the regional preview updates as you go. 4. Announce the field.<br>${formatSummary(cfg)}</div>` : ''}
     ${confirmed
@@ -967,15 +968,16 @@ function regionalPreview(s, field, podList, r) {
         <span class="reg-prev-seed">${k}</span><span class="reg-prev-team">${team(t, { rank: false, size: 16 })}</span>
         <span class="reg-prev-conf" title="${esc(c)}">${confLogo(c, 18)}${confInfo(c).logo ? `<span>${esc(confInfo(c).abbr || c)}</span>` : ''}</span>
         <span class="reg-prev-num" title="National seed / ${IX()} rank">#${seedOf(t)} · ${r[t]?.rank ?? '–'}</span></div>`; };
-        // More than 5 teams: the first-round matchups (byes too); otherwise the teams in seed order.
-        return teams.length > 5 ? `<div class="reg-prev-sub">First round</div>${regionalFirstRound(teams.length).map(pair => `<div class="reg-prev-pair">${pair.map(row).join('')}</div>`).join('')}` : teams.map((_, k) => row(k + 1)).join('');
+        // The first-round matchups (byes too); conference rivals meeting are flagged.
+        return `<div class="reg-prev-sub">First round</div>${regionalFirstRound(teams.length).map(pair => `<div class="reg-prev-pair${pair[1] && confClashes([[teams[pair[0] - 1], teams[pair[1] - 1]]], s).length ? ' clash' : ''}">${pair.map(row).join('')}</div>`).join('')}`;
       })()}
       ${dupes.length ? `<div class="reg-prev-warn">⚠ Same conference: ${dupes.map(([c, l]) => `${esc(c)} (${l.length})`).join(', ')}</div>` : ''}
     </div>`;
   }).join('');
   const clashes = podList.filter(teams => new Set(teams.map(t => s.teams[t].conference)).size < teams.length).length;
+  const firstRound = confClashes(podList, s).length;
   return `<aside class="card reg-preview"><h2 style="margin:0 0 4px">Regional preview</h2>
-    <div class="small muted" style="margin-bottom:10px">Seed in the regional, national seed · ${IX()} rank. ${clashes ? `<b class="warn-text">${clashes} regional${clashes > 1 ? 's have' : ' has'} conference rivals together.</b>` : 'No conference rivals share a regional.'} Strongest to weakest regional: ${spread.toFixed(1)} OVR.</div>
+    <div class="small muted" style="margin-bottom:10px">Seed in the regional, national seed · ${IX()} rank. ${firstRound ? `<b class="warn-text">${firstRound} first-round matchup${firstRound > 1 ? 's' : ''} between conference rivals (no swap could avoid ${firstRound > 1 ? 'them' : 'it'}).</b>` : 'No conference rivals meet in the first round.'} ${clashes ? `${clashes} regional${clashes > 1 ? 's have' : ' has'} conference rivals in it.` : ''} Strongest to weakest regional: ${spread.toFixed(1)} OVR.</div>
     <div class="reg-prev-list">${boxes}</div></aside>`;
 }
 
