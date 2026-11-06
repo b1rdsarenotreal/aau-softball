@@ -19,9 +19,9 @@
 // teams that played fewer weekend games getting a few more so season totals
 // stay close together.
 
-import { isIndependent } from './standings.js?v=20261105215743';
-import { cityPoint, miles } from './geo.js?v=20261105215743';
-import { rng, shuffle, hashStr } from './util.js?v=20261105215743';
+import { isIndependent } from './standings.js?v=20261105225339';
+import { cityPoint, miles } from './geo.js?v=20261105225339';
+import { rng, shuffle, hashStr } from './util.js?v=20261105225339';
 
 export const DEFAULT_REG_WEEKS = 12;
 export const DEFAULT_MIDWEEK_START = 4;
