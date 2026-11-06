@@ -92,7 +92,7 @@ try:
         pg.click("[data-tab=rpi]"); pg.wait_for_timeout(200)
         pg.screenshot(path=f"{OUT}/06-rpi.png")
         pg.click("[data-tab=sos]"); pg.wait_for_timeout(200)
-        assert "Strength of schedule =" in pg.content()
+        assert "Strength of schedule is the NPI" in pg.content()
         pg.screenshot(path=f"{OUT}/06b-sos.png")
         pg.click("[data-tab=bracket]"); pg.wait_for_timeout(300)
         assert pg.locator(".bo-reg").count() == 8 and "Last four in" in pg.content(), "bracketology shows eight projected regionals"
@@ -125,9 +125,9 @@ try:
         seeds = pg.evaluate("[...document.querySelectorAll('.seed-row .team-link')].map(a => a.title)")
         assert len(seeds) == 32 and in_team in seeds and (out_team == in_team or out_team not in seeds), f"field follows the picks {in_team} {out_team} {seeds}"
         heads = pg.locator(".seed-table thead").inner_text().split()
-        assert heads[:9] == ["Seed", "Team", "Rec", "RPI", "Q1", "Q2", "Q3", "Q4", "SOS"], f"seed table columns {heads}"
+        assert heads[:9] == ["Seed", "Team", "Rec", "NPI", "Q1", "Q2", "Q3", "Q4", "SOS"], f"seed table columns {heads}"
         board_heads = pg.evaluate("[...document.querySelector('.sel-board .sel-table thead').querySelectorAll('th')].map(th => th.textContent.trim())")
-        assert board_heads.index("RPI") < board_heads.index("Q1") < board_heads.index("SOS") < board_heads.index("Poll"), f"board puts RPI, quadrants, then SOS {board_heads}"
+        assert board_heads.index("NPI") < board_heads.index("Q1") < board_heads.index("SOS") < board_heads.index("Poll"), f"board puts NPI, quadrants, then SOS {board_heads}"
         # Drag seed 1 down below seed 3 with the mouse
         order0 = pg.evaluate("[...document.querySelectorAll('.seed-row .team-link')].map(a => a.title)")
         pg.locator("[data-drag='0']").scroll_into_view_if_needed(); pg.wait_for_timeout(100)

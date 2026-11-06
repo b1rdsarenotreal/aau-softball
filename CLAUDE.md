@@ -47,6 +47,15 @@ that rule doesn't include this repo.)
 - User-facing text says "AAU National Tournament" and "World Series", never
   NCAA or MCWS. Internal names (`mcws`, `mcwsVenue`, `regionals`, `supers`)
   stay as they are.
+- Selection uses the Power Index (NPI): `npi` in `js/standings.js`, with
+  each side's NCAA Division III dials in `settings.npi` (`NPI_BY_SIDE` in
+  `js/league.js`), when `settings.index` is 'npi' (the default;
+  `indexVersion` 1 switched older saves from the current or next season
+  on). A level game counts as a tie in the NPI even if penalty kicks or a
+  shootout decided it. The committee goes straight down the NPI: no tiers
+  (`sheet.tiers` empty). `rating(season)` gives the season's index in the
+  RPI's shape (value in `rpi`, plus `rank`, `sosRank`); use it, not
+  `rpi()`, and `indexName(season)` for on-screen labels.
 
 ## Before every commit
 
