@@ -49,7 +49,9 @@ for (const g of reg.filter(g => g.confGame)) for (const t of [g.home, g.away]) c
 for (const [t, w0] of Object.entries(confStart)) {
   const byes = [];
   for (let w = w0; w <= REGW; w++) if (!reg.some(g => g.week === w && g.day === 'Fri' && g.confGame && (g.home === t || g.away === t))) byes.push(w);
-  assert.ok(byes.length <= 1, `${t} plays conference series every weekend once its conference play starts (${byes})`);
+  // A home-and-away conference with an odd count has a bye in each half.
+  const csize = Object.values(s.teams).filter(x => x.conference === s.teams[t].conference).length;
+  assert.ok(byes.length <= (csize <= 5 ? 2 : 1), `${t} plays conference series every weekend once its conference play starts (${byes})`);
 }
 const lastConf = Object.values(s.teams).map(t => t.conference);
 assert.ok(new Set(reg.filter(g => g.confGame && g.week === REGW).flatMap(g => [s.teams[g.home].conference])).size === new Set(lastConf).size, 'every conference plays on the final weekend');
@@ -405,7 +407,10 @@ assert.ok(s2.games.some(g => g.type === 'regular') && s2.games.every(g => !g.fin
 const host16 = new Map(s.games.filter(g => g.type === 'regular' && g.confGame).map(g => [[g.home, g.away].sort().join('|'), g.home]));
 let flipped = 0, same = 0;
 for (const g of s2.games.filter(g => g.type === 'regular' && g.confGame && g.day === 'Fri')) {
-  const h = host16.get([g.home, g.away].sort().join('|'));
+  const k = [g.home, g.away].sort().join('|');
+  // Home-and-away rivals (conferences of 5 or fewer) host each other every year.
+  if (new Set(s2.games.filter(x => x.confGame && [x.home, x.away].sort().join('|') === k).map(x => x.home)).size > 1) continue;
+  const h = host16.get(k);
   if (h) (h === g.home ? same++ : flipped++);
 }
 console.log(`conference series that met in both years: ${flipped} flipped, ${same} same host`);
@@ -926,4 +931,31 @@ console.log(`all checks ok in ${Date.now() - t0} ms`);
     assert.deepEqual(s.post.regionals.map(ev => ev.seeds), fixed, 'the announced regionals match the preview');
   }
   console.log('conference matchups ok');
+}
+
+// Conferences of 5 or fewer play each rival twice: a 3-game series at each
+// field (the owner's rule). Bigger conferences play each rival once.
+{
+  for (const side of ['softball', 'baseball']) {
+    const s = currentSeason(newLeague({ side }));
+    const conf = n => s.teams[n].conference;
+    const size = {};
+    for (const t of Object.values(s.teams)) size[t.conference] = (size[t.conference] || 0) + 1;
+    const pairs = {};
+    for (const g of s.games) if (g.type === 'regular' && conf(g.home) === conf(g.away)) {
+      const k = [g.home, g.away].sort().join('|');
+      ((pairs[k] ||= {})[g.home] ||= []).push(g.week);
+    }
+    let small = 0;
+    for (const [k, hosts] of Object.entries(pairs)) {
+      const n = size[conf(k.split('|')[0])];
+      if (n <= 5) {
+        small++;
+        assert.equal(Object.keys(hosts).length, 2, `${side} ${k}: one series at each field`);
+        for (const w of Object.values(hosts)) assert.ok(w.length === 3 && new Set(w).size === 1, `${side} ${k}: 3 games in one week`);
+      } else assert.equal(Object.keys(hosts).length, 1, `${side} ${k}: one series`);
+    }
+    assert.ok(small > 0, `${side} has a conference of 5 or fewer`);
+  }
+  console.log('home and away ok');
 }

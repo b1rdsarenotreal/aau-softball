@@ -31,6 +31,9 @@ that rule doesn't include this repo.)
   midweek doubleheader. The World Series is the College World Series at
   Charles Schwab Field, Omaha; softball's is the Women's College World Series
   at Devon Park, Oklahoma City.
+- A conference of `confHomeAwayMax` (5) or fewer teams plays each rival
+  twice, a 3-game series at each field (the owner's rule, Nov. 2026); bigger
+  conferences play each rival once, the host swapping every year. Both sides.
 - Inning counts on screen come from `settings.innings`; never hardcode 7.
 - Seeds on screen: at a regional every team shows its regional seed, 1 to
   the regional's size (`regionalSeed`; regionals of 2 to 8); super regional

@@ -2,7 +2,8 @@
 // (12 weeks by default). The last weeks are conference series (round robin,
 // three games each). A conference's size sets when its conference play
 // starts: one week per round of its round robin, up to 9 weeks, all ending on
-// the final weekend. The weeks before are non-conference weekend series. From week 4
+// the final weekend (a conference of 5 or fewer plays its round robin twice,
+// home and away, which can take 10). The weeks before are non-conference weekend series. From week 4
 // (a setting) until the week before the last, every team also plays a
 // two-game midweek set: a Tuesday doubleheader or a
 // Tuesday and Wednesday game against the same opponent (or, in older
@@ -19,9 +20,9 @@
 // teams that played fewer weekend games getting a few more so season totals
 // stay close together.
 
-import { isIndependent } from './standings.js?v=20261107205151';
-import { cityPoint, miles } from './geo.js?v=20261107205151';
-import { rng, shuffle, hashStr } from './util.js?v=20261107205151';
+import { isIndependent } from './standings.js?v=20261108132649';
+import { cityPoint, miles } from './geo.js?v=20261108132649';
+import { rng, shuffle, hashStr } from './util.js?v=20261108132649';
 
 export const DEFAULT_REG_WEEKS = 12;
 export const DEFAULT_MIDWEEK_START = 4;
@@ -246,6 +247,7 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   const games = [];
   let seriesNo = 1;
 
+  const legHost = new Map(); // home-and-away conferences: the first meeting's host
   // Who hosted each conference series last season.
   const lastHost = new Map();
   for (const g of prev?.games || []) if (g.type === 'regular' && g.confGame) lastHost.set(key(g.home, g.away), g.home);
@@ -291,11 +293,22 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   // A conference that needs fewer rounds than there are conference weeks
   // starts its conference play later: its open weeks come first, so once a
   // conference starts it plays every weekend until the end of the season.
+  // A conference of `confHomeAwayMax` (5) or fewer teams plays everyone
+  // twice, a 3-game series at each field (the owner's rule, Nov. 2026): the
+  // round robin, then the same rounds again with the hosts swapped. It may
+  // run past the 9-week limit (a 5-team conference needs 10 weekends), but
+  // never into the first two weeks.
+  const HA_MAX = season.settings?.confHomeAwayMax ?? 5;
   for (const [conf, list] of Object.entries(byConf).sort((a, b) => a[0].localeCompare(b[0]))) {
     if (list.length < 2) continue;
-    const rounds = confRounds(list, confWeeks, r);
+    let rounds, legs = null;
+    if (list.length <= HA_MAX) {
+      const once = roundRobin(list, r);
+      rounds = [...once, ...once].slice(0, Math.max(1, REG - 2));
+      legs = rounds.map((_, i) => (i < once.length ? 1 : 2));
+    } else rounds = confRounds(list, confWeeks, r);
     const first = REG - rounds.length + 1;
-    rounds.forEach((pairs, i) => { (weekPairs[first + i] ||= []).push(...pairs.filter(([a, b]) => a && b).map(p => [...p, conf])); });
+    rounds.forEach((pairs, i) => { (weekPairs[first + i] ||= []).push(...pairs.filter(([a, b]) => a && b).map(p => [...p, conf, legs?.[i] || 0])); });
   }
   confStart = Math.min(Infinity, ...Object.keys(weekPairs).map(Number));
 
@@ -380,8 +393,11 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
   const satWeekend = {};
   for (let week = 1; week <= REG; week++) {
     const busy = new Set(), thuSeries = new Set();
-    for (const [a, b] of weekPairs[week] || []) {
-      const [h, aw] = orientConf(a, b);
+    for (const [a, b, , leg] of weekPairs[week] || []) {
+      // Home and away: the first meeting's host is picked as usual, the
+      // second meeting is at the other field.
+      const [h, aw] = leg === 2 && legHost.has(key(a, b)) ? (legHost.get(key(a, b)) === a ? [b, a] : [a, b]) : orientConf(a, b);
+      if (leg === 1) legHost.set(key(a, b), h);
       addSeries(week, h, aw, true); busy.add(a); busy.add(b);
     }
     const inTourney = new Set(tourneyWeek(week, names.filter(n => !busy.has(n))));
