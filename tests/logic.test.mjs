@@ -959,3 +959,18 @@ console.log(`all checks ok in ${Date.now() - t0} ms`);
   }
   console.log('home and away ok');
 }
+
+// Polls: once a team has played about a fifth of its season, a losing record
+// keeps it out of the poll when there are enough winning teams to fill it.
+{
+  const { recordRules } = await import('../js/polls.js');
+  const s = currentSeason(newLeague({ side: 'baseball' }));
+  simGames(s, g => g.type === 'regular');
+  for (const [w, p] of Object.entries(s.polls)) {
+    const recs = records(s, g => g.week <= +w);
+    const { barred } = recordRules(s, recs);
+    if (Object.keys(recs).length - barred.size < p.ranks.length) continue;
+    for (const x of p.ranks) assert.ok(!barred.has(x.team), `week ${w}: ${x.team} (${x.record}) is ranked with a losing record`);
+  }
+  console.log('polls and losing records ok');
+}
