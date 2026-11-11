@@ -22,7 +22,7 @@
 // baseball coaches list and softball programs list, school sites). Home
 // fields are each program's real field where known.
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261110235151';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261111000420';
 
 export const START_YEAR = 2030;
 
