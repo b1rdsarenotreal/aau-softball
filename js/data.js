@@ -22,7 +22,7 @@
 // baseball coaches list and softball programs list, school sites). Home
 // fields are each program's real field where known.
 
-import { DEFAULT_LOGOS } from './logo-import.js?v=20261111124324';
+import { DEFAULT_LOGOS } from './logo-import.js?v=20261111204958';
 
 export const START_YEAR = 2030;
 
@@ -192,7 +192,7 @@ export const SITES = Object.fromEntries(SOFTBALL_TEAMS.map(r => [r[0], [r[7], r[
 export const COACHES = Object.fromEntries(SOFTBALL_TEAMS.map(r => [r[0], r[9]]));
 
 // Names the logo lists may know a school by.
-export const LOGO_ALIASES = { Penn: 'Pennsylvania', 'Boston University': 'Boston University', 'George Washington': 'George Washington' };
+export const LOGO_ALIASES = { Penn: 'Pennsylvania', 'Boston University': 'Boston University', 'George Washington': 'George Washington', 'UConn': 'Connecticut' };
 
 function hashName(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; return h; }
 
