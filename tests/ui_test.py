@@ -351,7 +351,7 @@ try:
         sb_champ = pg.evaluate("() => document.querySelector('#league-name').textContent")
         pg.goto(url + "#/home"); pg.wait_for_selector("#side-switch [data-side='baseball']")
         pg.click("#side-switch [data-side='baseball']")
-        pg.wait_for_function("document.getElementById('league-name').textContent === 'AAU Baseball'", timeout=20000)
+        pg.wait_for_function("document.getElementById('league-name').textContent === 'Baseball'", timeout=20000)
         pg.goto(url + "#/teams"); pg.wait_for_timeout(400)
         t = pg.locator("#app").inner_text()
         assert "Vanderbilt" in t and "Boston University" not in t, "baseball teams"
@@ -368,7 +368,7 @@ try:
         pg.goto(url + "#/team/Texas"); pg.wait_for_timeout(400)
         assert "UFCU" in pg.content(), "baseball home field"
         pg.click("#side-switch [data-side='softball']")
-        pg.wait_for_function("document.getElementById('league-name').textContent === 'AAU Softball'", timeout=20000)
+        pg.wait_for_function("document.getElementById('league-name').textContent === 'Softball'", timeout=20000)
         pg.goto(url + "#/teams"); pg.wait_for_timeout(400)
         assert "Boston University" in pg.locator("#app").inner_text(), "softball dynasty kept"
         b.close()
