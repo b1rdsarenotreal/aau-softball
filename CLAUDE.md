@@ -40,6 +40,24 @@ that rule doesn't include this repo.)
   hosts show their national seed; at the World Series only national seeds
   1 to `wsSize` show (`shownSeed(season, team, 'mcws')`).
 
+## The AAU look
+
+- The AAU look (Nov. 2026, ported from AAU Field Hockey, built to match the
+  owner's mockups): a two-row top bar (brand row, then the menu); scoreboard
+  cards (`gameCard`: the conference's color bar and logo, the doubleheader
+  and series tag, a row per team with hits and errors under an H E R header
+  and the runs, the loser faded); standings with the conference list down
+  the side (`st-*`), each conference in its colors (`confVars`, `confHead`;
+  conference W-L, GB), All conferences compact, the last 5 (postseason
+  included) opening the poll's game pop-up; the poll as a board (`pb-*`)
+  beside movers, receiving votes and dropped out, under the No. 1 team's
+  card; the team page header in the team's colors with title banners and a
+  numbers strip (`teamHero`) and schedule boxes (`ts2-*`: one
+  regular-season box, conference logo on conference games, a box per
+  tournament, a venue column, the result opening the box score). No Full
+  bracket tab: the regionals are double elimination and keep their own tab.
+  Navy `--board`, gold `--optic`; Oswald, Saira Condensed, Inter.
+
 ## Owner's rules
 
 - Teams start in the owner's eight conferences (the AAU Dynasty alignment),

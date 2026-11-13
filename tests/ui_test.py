@@ -22,22 +22,25 @@ try:
         pg.goto(url + "#/home"); pg.wait_for_selector(".kpis")
         pg.screenshot(path=f"{OUT}/01-home.png", full_page=True)
         # Big Ten: 8-team double elimination; Ivy League: double elimination
-        pg.goto(url + "#/standings"); pg.wait_for_selector("[data-format]", state="attached")
+        # Standings open on All conferences; each conference's own table has its settings.
+        pg.goto(url + "#/standings"); pg.wait_for_selector(".st-side")
         open_all = "document.querySelectorAll('details').forEach(d => d.open = true)"
         for sel, val in [("select[data-format='Big Ten']", "double"), ("select[data-size='Big Ten']", "8"), ("select[data-format='Ivy League']", "double"), ("select[data-weekend='Big Ten']", "dh-sun")]:
+            conf = sel.split("'")[1]
+            pg.click(f".st-link[data-stc='{conf}']"); pg.wait_for_selector(sel, state="attached")
             pg.evaluate(open_all); pg.select_option(sel, val); pg.wait_for_timeout(200)
         pg.goto(url + "#/schedule"); pg.wait_for_selector(".game")
         pg.click("#w-sim"); pg.wait_for_timeout(300)
         pg.screenshot(path=f"{OUT}/02-schedule.png", full_page=False)
         # open a game and simulate in the editor, then save
-        # Conference games: the whole card border is the conference's color.
+        # Conference games: a bar of the conference's color across the top.
         pg.click(".chip[data-week='10']"); pg.wait_for_selector(".game.conf-game")
         bd = pg.evaluate("""(() => { const g = document.querySelector('.game.conf-game'), cs = getComputedStyle(g);
           const probe = document.createElement('i'); probe.style.color = cs.getPropertyValue('--cc'); document.body.append(probe);
           const want = getComputedStyle(probe).color; probe.remove();
-          return { w: cs.borderLeftWidth, l: cs.borderLeftColor, t: cs.borderTopColor, b: cs.borderBottomColor, want }; })()""")
-        assert bd["w"] == "2px" and bd["l"] == bd["t"] == bd["b"] == bd["want"], f"conference border color: {bd}"
-        dh = pg.evaluate("[...document.querySelectorAll('.game.conf-game')].filter(g => g.querySelector('.ga-conf')?.title.startsWith('Big Ten')).map(g => [g.querySelector('.ga-status').textContent.trim(), g.querySelector('.ga-tag').textContent.includes('DH')])")
+          return { w: cs.borderTopWidth, t: cs.borderTopColor, want }; })()""")
+        assert bd["w"] == "5px" and bd["t"] == bd["want"], f"conference bar color: {bd}"
+        dh = pg.evaluate("[...document.querySelectorAll('.game.conf-game')].filter(g => g.querySelector('.sc-conf')?.title.startsWith('Big Ten')).map(g => [g.querySelector('.sc-status').textContent.trim().slice(-3), (g.querySelector('.sc-tag')?.textContent || '').includes('DH')])")
         assert dh and all((day == "Sat") == isdh and day in ("Sat", "Sun") for day, isdh in dh), f"Big Ten: Saturday doubleheader, then Sunday: {dh}"
         pg.goto(url + "#/schedule"); pg.click(".chip[data-week='2']"); pg.wait_for_timeout(200)
         order_js = "[...document.querySelectorAll('.game[data-game]')].map(e => e.dataset.game).join(',')"
@@ -88,7 +91,7 @@ try:
         pg.click("tr[data-voter='v2']"); pg.wait_for_timeout(200)
         assert "Priya Raman's ballot" in pg.content()
         pg.screenshot(path=f"{OUT}/05-poll.png", full_page=True)
-        assert pg.locator(".dropped").count() + pg.get_by_text("No teams dropped out").count() >= 1, "dropped-out list shown"
+        assert pg.locator(".ps-box h3", has_text="Dropped out").count() == 1, "dropped-out list shown"
         pg.click("[data-tab=rpi]"); pg.wait_for_timeout(200)
         pg.screenshot(path=f"{OUT}/06-rpi.png")
         pg.click("[data-tab=sos]"); pg.wait_for_timeout(200)
@@ -228,6 +231,7 @@ try:
         pg.screenshot(path=f"{OUT}/15b-offseason-realigned.png", full_page=True)
         pg.click("#o-start"); pg.wait_for_timeout(800)
         pg.goto(url + "#/standings"); pg.wait_for_timeout(300)
+        pg.click(".st-link[data-stc='all']"); pg.wait_for_timeout(200)
         assert "Summit" in pg.content() and "Omaha" in pg.content()
         pg.goto(url + "#/team/Texas"); pg.wait_for_timeout(300)
         assert "Magali Frezzotti" in pg.content()
