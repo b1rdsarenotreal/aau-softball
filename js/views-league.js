@@ -1,20 +1,20 @@
 // League pages: teams, team profiles, conferences, history, settings.
 
-import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261112232258';
-import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261112232258';
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, seasonLabel, seasonSpan } from './ui.js?v=20261112232258';
-import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261112232258';
-import { ovr, gameRules } from './sim.js?v=20261112232258';
-import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261112232258';
-import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel, defaultSettings } from './league.js?v=20261112232258';
-import { sideOf } from './data.js?v=20261112232258';
-import { hotSeat, HEAT } from './hotseat.js?v=20261112232258';
-import { setRating } from './ratings.js?v=20261112232258';
-import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261112232258';
-import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261112232258';
-import { exportLeague, clearLeague } from './store.js?v=20261112232258';
-import { clamp, fmtPct } from './util.js?v=20261112232258';
-import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261112232258';
+import { readAauLogos, applyAauLogos, DEFAULT_LOGOS } from './logo-import.js?v=20261113200442';
+import { AAU_SCHOOLS, AAU_CONFERENCES, AAU_PROGRAMS } from './aau-schools.js?v=20261113200442';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, flushSave, cache, team, teamInfo, logoImg, teamOptions, teamHref, confLogo, confHref, confInfo, confColor, imageFileToDataUrl, readableOn, openGame, resultText, seasonLabel, seasonSpan } from './ui.js?v=20261113200442';
+import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, confStandings, regSeasonChamp, regSeasonChamps, isIndependent } from './standings.js?v=20261113200442';
+import { ovr, gameRules } from './sim.js?v=20261113200442';
+import { latestPoll, pollRankMap, pollSizeOf, POLL_SIZES, DEFAULT_POLL_SIZE } from './polls.js?v=20261113200442';
+import { addTeam, removeTeam, renameTeam, addConference, renameConference, deleteConference, rebuildSchedule, startNextSeason, weekName, newLeague, beginOffseason, draftRemoveTeam, draftRestoreTeam, draftWarnings, coachName, coachSchool, hireCoach, newCoach, availableCoaches, backfillHitsErrors, placeRemaining, clearPoints, pointsLeft, migrateLeague, syncCoachBonus, devTotal, coachResumes, coachPrestige, prestigeLabel, coachBonus, programPrestiges, programLabel, fitLabel, defaultSettings } from './league.js?v=20261113200442';
+import { sideOf } from './data.js?v=20261113200442';
+import { hotSeat, HEAT } from './hotseat.js?v=20261113200442';
+import { setRating } from './ratings.js?v=20261113200442';
+import { confFormatName, postseasonFinish, postseasonDetail, postseasonRecord, wsTeams, postWeeks, regWeeksOf, ncaaConfig, ncaaProblems, fieldSize, hasSupers, formatSummary, proposeField, DEFAULT_NCAA, mcwsVenue, allEvents, gameVenue } from './postseason.js?v=20261113200442';
+import { MIDWEEK, MIDWEEK_FREQ, MIDWEEK_SHARE, DEFAULT_TOURNEY_WEEKS, DEFAULT_REG_WEEKS } from './schedule.js?v=20261113200442';
+import { exportLeague, clearLeague } from './store.js?v=20261113200442';
+import { clamp, fmtPct } from './util.js?v=20261113200442';
+import { recordBook, teamPollHistory, headToHead } from './records.js?v=20261113200442';
 // Win or loss for a team (no ties in this sport).
 const resultFor = (g, t) => (winnerOf(g) === t ? 'W' : 'L');
 
@@ -598,7 +598,7 @@ function teamScheduleRows(s, name, t, games) {
     return `<div class="ts2-row" data-g="${g.id}" tabindex="0" role="button" aria-label="${esc(`${gameDate(s, g)}: ${where === 'Away' ? 'at' : 'vs.'} ${opp}${fin ? `, ${res === 'W' ? 'won' : res === 'L' ? 'lost' : 'tied'}` : ''}`)}">
       <span class="ts2-date">${esc(DOWN[g.day] || g.day)}, ${gameDate(s, g)}</span>
       <span class="ts2-where">${where}</span>
-      <span class="ts2-opp"><span class="ts2-logo">${logoImg(teamInfo(opp), 30)}</span><span class="ts2-vs">${where === 'Away' ? 'at' : 'vs'}</span>${oppRank ? `<span class="ts2-rank">${oppRank}</span>` : ''}<a class="team-link" href="${teamHref(opp)}">${esc(opp)}</a>${seedNote ? `<span class="muted small">${seedNote}</span>` : ''}${tag}</span>
+      <span class="ts2-opp"><span class="ts2-mine"${ranks[name] ? ` title="${esc(name)}'s rank that week"` : ''}>${ranks[name] ? `#${ranks[name]}` : ''}</span><span class="ts2-vs">${where === 'Away' ? 'at' : 'vs'}</span><span class="ts2-logo">${logoImg(teamInfo(opp), 30)}</span>${oppRank ? `<span class="ts2-rank">${oppRank}</span>` : ''}<a class="team-link" href="${teamHref(opp)}">${esc(opp)}</a>${seedNote ? `<span class="muted small">${seedNote}</span>` : ''}${tag}</span>
       <span class="ts2-venue">${v.stadium ? `<b>${esc(v.stadium)}</b>` : ''}${v.city ? `<span>${esc(v.city)}</span>` : ''}</span>
       <span class="ts2-result">${result}</span>
     </div>`;
