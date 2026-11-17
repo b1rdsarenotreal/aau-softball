@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261116232155';
+import { CONF_LOGO_LINKS } from './data.js?v=20261116233234';
 
 // Every AAU member school, for the "AAU school" pick on the Add team form:
 // abbreviation, mascot, colors, city and the conference it plays in in the
@@ -134,6 +134,20 @@ export const AAU_CONFERENCES = {
 // team form fills these in too.
 export const AAU_PROGRAMS = {
   softball: {
+    // The owner's new schools (Nov. 2026): home venue only; coaches are added by hand.
+    "Arkansas": { stadium: "Bogle Park" },
+    "Baylor": { stadium: "Getterman Stadium" },
+    "Houston": { stadium: "Cougar Softball Stadium" },
+    "Texas Tech": { stadium: "Rocky Johnson Field" },
+    "UT Dallas": { stadium: "UT Dallas Softball Field" },
+    "Saint Louis": { stadium: "Billiken Sports Center" },
+    "Memphis": { stadium: "Memphis Softball Complex" },
+    "San Diego State": { stadium: "SDSU Softball Stadium" },
+    "Nevada": { stadium: "Christina M. Hixson Softball Park" },
+    "UNLV": { stadium: "Eller Media Stadium" },
+    "Oregon State": { stadium: "Kelly Field" },
+    "BYU": { stadium: "Gail Miller Field" },
+    "Utah State": { stadium: "LaRee and LeGrand Johnson Field" },
     "Florida State": { stadium: "JoAnne Graf Field", coach: "Lonni Alameda" },
     "Georgia": { stadium: "Jack Turner Stadium", coach: "Tony Baldwin" },
     "Iowa State": { stadium: "Cyclone Sports Complex", coach: "Jamie Pinkerton" },
@@ -142,6 +156,20 @@ export const AAU_PROGRAMS = {
     "UConn": { stadium: "Connecticut Softball Stadium", coach: "Laura Valentino" },
   },
   baseball: {
+    // The owner's new schools (Nov. 2026): home venue only; coaches are added by hand.
+    "Arkansas": { stadium: "Baum–Walker Stadium" },
+    "Baylor": { stadium: "Baylor Ballpark" },
+    "Houston": { stadium: "Schroeder Park" },
+    "Texas Tech": { stadium: "Dan Law Field at Rip Griffin Park" },
+    "UT Dallas": { stadium: "UT Dallas Baseball Field" },
+    "Saint Louis": { stadium: "Billiken Sports Center" },
+    "Memphis": { stadium: "FedExPark" },
+    "San Diego State": { stadium: "Tony Gwynn Stadium" },
+    "Nevada": { stadium: "William Peccole Park" },
+    "UNLV": { stadium: "Earl E. Wilson Stadium" },
+    "Oregon State": { stadium: "Goss Stadium at Coleman Field" },
+    "BYU": { stadium: "Larry H. Miller Field" },
+    "Washington State": { stadium: "Bailey–Brayton Field" },
     "Florida State": { stadium: "Dick Howser Stadium", coach: "Link Jarrett" },
     "Georgia": { stadium: "Foley Field", coach: "Wes Johnson" },
     "Nebraska": { stadium: "Hawks Field at Haymarket Park", coach: "Will Bolt" },
