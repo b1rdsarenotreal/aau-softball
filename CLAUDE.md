@@ -47,8 +47,8 @@ that rule doesn't include this repo.)
 - The AAU look (Nov. 2026, ported from AAU Field Hockey, built to match the
   owner's mockups): a two-row top bar (brand row, then the menu); scoreboard
   cards (`gameCard`: the conference's color bar and logo, the doubleheader
-  and series tag, a row per team with hits and errors under an H E R header
-  and the runs, the loser faded); standings with the conference list down
+  and series tag, a row per team with the runs, hits and errors under an
+  R H E header, the loser faded); standings with the conference list down
   the side (`st-*`), each conference in its colors (`confVars`, `confHead`;
   conference W-L, GB), All conferences compact, the last 5 (postseason
   included) opening the poll's game pop-up; the poll as a board (`pb-*`)

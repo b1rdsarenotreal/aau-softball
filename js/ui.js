@@ -1,16 +1,16 @@
 // Shared UI state and pieces used by every page: the league, saving,
 // team labels and logos, game cards, and the game editor.
 
-import { saveLeague } from './store.js?v=20261116184335';
-import { logoFor } from './logos.js?v=20261116184335';
-import { LOGO_ALIASES } from './data.js?v=20261116184335';
-import { ovr, winProbability } from './sim.js?v=20261116184335';
-import { records, isFinal, winnerOf, sameConf } from './standings.js?v=20261116184335';
-import { latestPoll, pollRankMap } from './polls.js?v=20261116184335';
-import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261116184335';
-import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261116184335';
-import { DAY_ORDER } from './schedule.js?v=20261116184335';
-import { esc } from './util.js?v=20261116184335';
+import { saveLeague } from './store.js?v=20261116185141';
+import { logoFor } from './logos.js?v=20261116185141';
+import { LOGO_ALIASES } from './data.js?v=20261116185141';
+import { ovr, winProbability } from './sim.js?v=20261116185141';
+import { records, isFinal, winnerOf, sameConf } from './standings.js?v=20261116185141';
+import { latestPoll, pollRankMap } from './polls.js?v=20261116185141';
+import { afterChange, applyResult, clearResult, simResult, deleteGame, weekName, estimateHE } from './league.js?v=20261116185141';
+import { regWeeksOf, shownSeed, regionalSeed, mcwsVenue, gameVenue } from './postseason.js?v=20261116185141';
+import { DAY_ORDER } from './schedule.js?v=20261116185141';
+import { esc } from './util.js?v=20261116185141';
 
 // Logo files in this app (img/conf/) carry this release's version, like the
 // scripts do, so a redrawn logo shows right away instead of a cached copy.
@@ -262,7 +262,7 @@ export function gameCard(g) {
   // Softball and baseball keep the tag on conference games too: the
   // doubleheader and where the series stands.
   const tag = gameTag(g, true);
-  // Softball and baseball show hits and errors beside the runs (R H E),
+  // Softball and baseball show the runs, then hits and errors (R H E),
   // not every inning.
   const n = 2;
   const w = fin ? winnerOf(g) : null;
@@ -273,8 +273,8 @@ export function gameCard(g) {
     return `<div class="sc-row ${cls}" style="--n:${n}">
       <a class="sc-logo" href="${t ? teamHref(t) : '#'}" title="${esc(t || '')}">${logoImg(info, 32)}</a>
       <span class="sc-name">${poll ? `<span class="sc-rk" title="Poll ranking">${poll}</span>` : ''}${seed ? `<span class="sc-seed" title="Seed">${seed}</span>` : ''}<a class="team-link" href="${t ? teamHref(t) : '#'}">${esc(t || 'TBD')}</a>${!fin && t ? `<span class="sc-rec">${recordAt(t, g)}</span>` : ''}</span>
-      ${he.map(v => `<span class="sc-q">${fin && v != null ? v : ''}</span>`).join('')}
-      <span class="sc-score">${fin ? R : ''}</span></div>`;
+      <span class="sc-score">${fin ? R : ''}</span>
+      ${he.map(v => `<span class="sc-q">${fin && v != null ? v : ''}</span>`).join('')}</div>`;
   };
   let right;
   if (fin) right = '<span class="sc-link">Box score</span>';
@@ -284,7 +284,7 @@ export function gameCard(g) {
   }
   return `<div class="game sc ${fin ? 'final' : 'upcoming'}${conf ? ' conf-game' : ''}" style="--cc:${esc(conf ? confColor(conf) : '#0b1f3a')}" data-game="${g.id}" tabindex="0">
     <div class="sc-top">${conf ? `<a class="sc-conf" href="${confHref(conf)}" title="${esc(conf)}${g.type === 'conf' ? ' Tournament' : ' game'}">${confLogo(conf, 24)}</a>` : ''}<span class="sc-status"><b>${fin ? esc(gameStatus(g)).toUpperCase() : 'UPCOMING'}</b> · ${esc(g.day)}</span>${tag ? `<span class="sc-tag">${tag}</span>` : ''}</div>
-    <div class="sc-body">${fin ? `<div class="sc-row sc-hd" style="--n:${n}" aria-hidden="true"><span></span><span></span><span class="sc-q">H</span><span class="sc-q">E</span><span class="sc-score">R</span></div>` : ''}${row(g.away, [g.awayH, g.awayE], g.awayR)}${row(g.home, [g.homeH, g.homeE], g.homeR)}</div>
+    <div class="sc-body">${fin ? `<div class="sc-row sc-hd" style="--n:${n}" aria-hidden="true"><span></span><span></span><span class="sc-score">R</span><span class="sc-q">H</span><span class="sc-q">E</span></div>` : ''}${row(g.away, [g.awayH, g.awayE], g.awayR)}${row(g.home, [g.homeH, g.homeE], g.homeR)}</div>
     <div class="sc-foot"><span class="sc-where">${esc(where)}</span>${right}</div></div>`;
 }
 
