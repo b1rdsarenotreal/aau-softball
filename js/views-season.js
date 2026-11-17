@@ -1,14 +1,14 @@
 // Season pages: home, schedule, standings, rankings and postseason.
 
-import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261116223240';
-import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261116223240';
-import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261116223240';
-import { ovr } from './sim.js?v=20261116223240';
-import { simGames, addGame, weekName } from './league.js?v=20261116223240';
-import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261116223240';
-import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, fieldSize, wsTeams, formatSummary, shownSeed, regionalSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261116223240';
-import { fmtPct, hashStr } from './util.js?v=20261116223240';
-import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261116223240';
+import { ctx, S, app, modal, $, $$, esc, toast, changed, persist, cache, team, teamOptions, teamNames, confLogo, confHref, confColor, confInfo, gameCard, compactCard, placeholderCard, bindGameCards, openGame, resultText, DAY_NAMES, readableOn, teamInfo, logoImg, teamHref, seasonLabel } from './ui.js?v=20261116225307';
+import { isFinal, winnerOf, records, rpi, rating, indexName, usesNpi, NPI_DIALS, confStandings, conferences, regSeasonChamp, regSeasonChamps, TIEBREAKERS, quadrants, quadCuts, isIndependent, INDEPENDENT } from './standings.js?v=20261116225307';
+import { latestPoll, generatePoll, pollRankMap, pollSizeOf, VOTER_PANEL, voterStyle, votersOf, addRandomVoter, removeVoter } from './polls.js?v=20261116225307';
+import { ovr } from './sim.js?v=20261116225307';
+import { simGames, addGame, weekName } from './league.js?v=20261116225307';
+import { confClashes, CONF_FORMATS, confFormatName, confKind , regionalFirstRound } from './postseason.js?v=20261116225307';
+import { COMMITTEE_TIERS, gameVenue, COMMITTEE_SHORT, committeeSheet, compareTeams, mcwsVenue, postWeeks, regWeeksOf, ncaaConfig, hasSupers, fieldSize, wsTeams, formatSummary, shownSeed, regionalSeed, postseasonBonus, defaultConfTourneySize, confTourneySeeds, reseedConfTourney, proposeField, lockField, pods, nodeTeams, nodeNeeded, runnerUp, committeeOrder, autoBids, refLabel, setConfFormat, ensureLayout, confHost, setConfHost, mcwsHistory, selectionBoard, setAtLarge, confirmField, unconfirmField, bracketology, BRACKETOLOGY_FROM_WEEK } from './postseason.js?v=20261116225307';
+import { fmtPct, hashStr } from './util.js?v=20261116225307';
+import { DAY_ORDER, CONF_WEEKENDS, applyConfWeekend } from './schedule.js?v=20261116225307';
 // Win or loss for a team (no ties in this sport).
 const resultFor = (g, t) => (winnerOf(g) === t ? 'W' : 'L');
 
@@ -768,10 +768,11 @@ export function renderPostseason(arg = '') {
 function renderPostseasonPage() {
   const s = S(), p = s.post || {};
   const cfg = ncaaConfig(s);
-  // Softball and baseball play double-elimination regionals and a
-  // World Series, which the one-page board doesn't draw; their regionals
-  // have their own tab.
-  const board = false;
+  // Softball and baseball's Full bracket (the owner's ask, Nov. 2026) is a
+  // summary board: each regional as a list with its teams' records there,
+  // the super regionals as series, the World Series brackets in the middle;
+  // any box opens that event's whole bracket.
+  const board = true;
   const defaultTab = { regular: 'conf', conf: 'conf', selection: 'field', regionals: board ? 'bracket' : 'regionals', supers: 'supers', mcws: board ? 'bracket' : 'mcws', complete: board ? 'bracket' : 'mcws' }[s.phase];
   const tabs = { conf: 'Conference tournaments', field: 'Selection', ...(board ? { bracket: 'Full bracket' } : {}), regionals: 'Regionals', ...(hasSupers(cfg) ? { supers: 'Super Regionals' } : {}), participants: 'Participants', mcws: s.settings.mcwsName };
   if (!ui.postTab || !tabs[ui.postTab]) ui.postTab = defaultTab;
@@ -788,7 +789,7 @@ function renderPostseasonPage() {
     simAndReport(g => g.type !== 'regular', 'in the postseason', { autoLock: true });
   };
   const root = $('#ps');
-  ({ conf: renderConfTourneys, field: renderField, bracket: renderBoard, regionals: renderRegionals, supers: renderSupers, participants: renderParticipants, mcws: renderMcws })[ui.postTab](root);
+  ({ conf: renderConfTourneys, field: renderField, bracket: renderFullBracket, regionals: renderRegionals, supers: renderSupers, participants: renderParticipants, mcws: renderMcws })[ui.postTab](root);
   bindGameCards(root);
 }
 
@@ -1126,6 +1127,99 @@ function fitBoard(root, extra = 0) {
 }
 let boardResize = null;
 window.addEventListener('resize', () => { clearTimeout(boardResize); boardResize = setTimeout(() => { const r = document.querySelector('.bb')?.closest('#ps'); if (r) { renderBoard(r); bindGameCards(r); } }, 120); });
+
+// ---------- Full bracket (softball and baseball) ----------
+// The whole National Tournament on one page: regionals on the outside, each
+// a list of its teams with their record there; then the super regionals
+// (series wins); the World Series in the middle on the navy panel. Bracket A
+// fills the left side and Bracket B the right, each paired the way the
+// teams will meet. Clicking a box opens that event's full bracket.
+function eventRecords(s, ev) {
+  const r = Object.fromEntries(ev.seeds.filter(t => t && t !== 'BYE').map(t => [t, { w: 0, l: 0 }]));
+  for (const g of s.games) {
+    if (g.event !== ev.id || !isFinal(g)) continue;
+    const w = winnerOf(g), l = w === g.home ? g.away : g.home;
+    if (r[w]) r[w].w++;
+    if (r[l]) r[l].l++;
+  }
+  return r;
+}
+// Out of the event: lost twice in double elimination, lost the series, or
+// the event has a winner and it isn't them.
+function knockedOut(ev, rec, t) {
+  if (ev.champion) return ev.champion !== t;
+  return ev.kind === 'series' ? rec[t].w < 2 && Object.values(rec).some(x => x.w >= 2) : rec[t].l >= 2;
+}
+function fbList(s, ev, title, seedFn, { wait = [] } = {}) {
+  if (!ev) return `<div class="fb-box fb-wait"><div class="fb-head"><b>${esc(title)}</b></div>${wait.map(w => `<div class="fb-row tbd"><span class="fb-team">${esc(w)}</span></div>`).join('')}</div>`;
+  const rec = eventRecords(s, ev);
+  const teams = ev.seeds.filter(t => t && t !== 'BYE');
+  const rows = teams.map(t => {
+    const out = knockedOut(ev, rec, t), won = ev.champion === t;
+    return `<div class="fb-row${out ? ' out' : ''}${won ? ' won' : ''}"><span class="fb-team">${team(t, { seed: seedFn(t), size: 18, rank: false })}</span><span class="fb-rec">${rec[t].w}–${rec[t].l}</span></div>`;
+  }).join('');
+  const c = teamInfo(ev.host || ev.champion || teams[0])?.color || '#0b1f3a';
+  return `<button type="button" class="fb-box" data-fb="${esc(ev.id)}" style="--rc:${esc(c)}" title="Open the full bracket"><div class="fb-head"><b>${esc(title)}</b><span class="fb-open">Bracket ›</span></div>${rows}</button>`;
+}
+function renderFullBracket(root) {
+  const s = S(), p = s.post || {}, cfg = ncaaConfig(s);
+  if (!p.regionals) { root.innerHTML = '<div class="empty">The full bracket fills in once the National Tournament field is announced.</div>'; return; }
+  const name = s.settings.mcwsName, v = mcwsVenue(s);
+  const supers = hasSupers(cfg), regs = p.regionals, n = regs.length;
+  const regSeed = t => regionalSeed(s, t), natSeed = t => shownSeed(s, t), wsSeed = t => shownSeed(s, t, 'mcws');
+  const byPath = list => Object.fromEntries((list || []).map((ev, i) => [ev.path ?? i, ev]));
+  const regAt = byPath(regs), supAt = byPath(p.supers);
+  const regBox = ev => fbList(s, ev, ev.name.replace(/ Regional$/, ''), regSeed);
+  // One path into the World Series: a super regional fed by two regionals,
+  // or a regional on its own.
+  const unit = k => {
+    if (!supers) return `<div class="fb-unit">${regBox(regAt[k])}</div>`;
+    const a = regAt[k], b = regAt[n - 1 - k], sup = supAt[k];
+    const w = ev => ev?.champion || `Winner: ${ev?.name || '?'}`;
+    return `<div class="fb-unit"><div class="fb-regs">${regBox(a)}${regBox(b)}</div><div class="fb-link"></div>
+      <div class="fb-sup">${fbList(s, sup, sup ? sup.name.replace(/ Super Regional$/, '') + ' Super' : 'Super Regional', natSeed, { wait: [w(a), w(b)] })}</div></div>`;
+  };
+  const paths = supers ? n / 2 : n;
+  // The order each side is drawn in: first-round pairs next to each other.
+  let left, right;
+  if (cfg.wsSize === 8 && paths === 8) { left = [0, 7, 3, 4]; right = [1, 6, 2, 5]; }
+  else { const all = Array.from({ length: paths }, (_, i) => i), half = Math.ceil(paths / 2); left = all.slice(0, half); right = all.slice(half); }
+  const stageName = supers ? 'super regional' : 'regional';
+  const waitFor = list => list.map(k => (supers ? supAt[k] : regAt[k])?.champion || `${stageName[0].toUpperCase()}${stageName.slice(1)} winner`);
+  const champ = p.mcwsFinals?.champion || p.mcws?.champion, ci = champ ? teamInfo(champ) : null;
+  const ws = cfg.wsSize === 8
+    ? `${fbList(s, p.mcwsBrackets?.[0], 'Bracket A', wsSeed, { wait: waitFor([0, 3, 4, 7]) })}
+       ${fbList(s, p.mcwsFinals, 'Championship Series', wsSeed, { wait: ['Bracket A winner', 'Bracket B winner'] })}
+       ${fbList(s, p.mcwsBrackets?.[1], 'Bracket B', wsSeed, { wait: waitFor([1, 2, 5, 6]) })}`
+    : fbList(s, p.mcws, name, wsSeed, { wait: waitFor(Array.from({ length: paths }, (_, i) => i)) });
+  root.innerHTML = `<div class="fb-scroll"><div class="fb">
+    <div class="fb-side">${left.map(unit).join('')}</div>
+    <div class="fb-center"><img class="bb-mark" src="img/aau-block.svg" alt=""><div class="bb-ftitle">${esc(name)}</div><div class="bb-fsite">${esc(v.stadium || '')}${v.city ? ` · ${esc(v.city)}` : ''}</div>
+      ${ws}
+      ${champ ? `<div class="bb-champ"><span class="bb-clogo">${logoImg(ci, 64)}</span><span class="bb-ckick">${seasonLabel(s.year)} National Champion</span><span class="bb-cname">${esc(champ)}</span></div>` : ''}</div>
+    <div class="fb-side mirror">${right.map(unit).join('')}</div></div></div>
+    <p class="small muted">Each regional lists its teams with regional seeds and their record there; ${supers ? `super regionals and the ${esc(name)} show` : `the ${esc(name)} shows`} national seeds and wins in that round. A faded team is out. Click any box for its full bracket.</p>`;
+  $$('[data-fb]', root).forEach(b => (b.onclick = () => openEventBracket(b.dataset.fb)));
+}
+// One event's whole bracket in a pop-up, its games opening box scores.
+function openEventBracket(id) {
+  const s = S(), p = s.post || {};
+  const ev = [...(p.regionals || []), ...(p.supers || []), ...(p.mcwsBrackets || []), ...(p.mcwsFinals ? [p.mcwsFinals] : []), ...(p.mcws ? [p.mcws] : [])].find(e => e.id === id);
+  if (!ev) return;
+  const reg = ev.id.startsWith('reg-'), ws = ev.id.startsWith('ws-') || ev.id === 'mcws';
+  const seed = reg ? t => regionalSeed(s, t) : ws ? t => shownSeed(s, t, 'mcws') : t => shownSeed(s, t);
+  const title = ws && ev.id !== 'mcws' ? `${s.settings.mcwsName} · ${ev.name}` : ev.name || s.settings.mcwsName;
+  const how = ev.kind === 'series' ? 'best of three' : 'double elimination';
+  modal.innerHTML = `<div class="modal-head"><h2>${esc(title)}</h2><button class="btn ghost" data-x>✕</button></div>
+    <div class="modal-body"><div class="small muted" style="margin-bottom:8px">${ev.seeds.filter(t => t && t !== 'BYE').map(t => `${esc(t)}${seed(t) ? ` (${seed(t)})` : ''}`).join(' · ')} · ${how}${ev.host ? `, hosted by ${esc(ev.host)}` : ''}${ev.champion ? ` · <b>Winner: ${esc(ev.champion)}</b>` : ''}</div>
+    ${eventBracket(ev, seed, ws ? { colw: 312 } : {})}</div>`;
+  modal.classList.add('wide');
+  $$('[data-x]', modal).forEach(b => (b.onclick = () => modal.close()));
+  modal.onclose = null;
+  modal.addEventListener('close', () => modal.classList.remove('wide'), { once: true });
+  bindGameCards(modal);
+  if (!modal.open) modal.showModal();
+}
 
 function renderRegionals(root) {
   const s = S(), p = s.post || {};

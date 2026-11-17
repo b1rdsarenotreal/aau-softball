@@ -56,8 +56,14 @@ that rule doesn't include this repo.)
   card; the team page header in the team's colors with title banners and a
   numbers strip (`teamHero`) and schedule boxes (`ts2-*`: one
   regular-season box, conference logo on conference games, a box per
-  tournament, a venue column, the result opening the box score). No Full
-  bracket tab: the regionals are double elimination and keep their own tab.
+  tournament, a venue column, the result opening the box score).
+  Postseason → Full bracket (`renderFullBracket`, the owner's ask, Nov.
+  2026) is a summary board, not drawn brackets: each regional as a list of
+  its teams with their record there (faded once out), super regionals as
+  series boxes, the World Series (Bracket A, Championship Series, Bracket B)
+  on the navy panel in the middle, Bracket A's paths on the left and B's on
+  the right; any box opens that event's whole bracket in a pop-up
+  (`openEventBracket`).
   Navy `--board`, gold `--optic`; Oswald, Saira Condensed, Inter.
 
 ## Owner's rules
