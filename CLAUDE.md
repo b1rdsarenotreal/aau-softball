@@ -28,7 +28,9 @@ that rule doesn't include this repo.)
   3-game ones after, 3-game conference series,
   midweek from week 2 in about two weeks of three (`midweekFreq: 'most'`), mostly a single Tuesday game and
   sometimes a Tuesday–Wednesday pair (`midweek: 'mostly-single'`), never a
-  midweek doubleheader. The World Series is the College World Series at
+  midweek doubleheader. Baseball opens two weeks after softball
+  (`startWeeksLater` 2, used by `gameDate`; `startVersion` 1 set it on older
+  baseball saves; the owner's rule, Nov. 2026). The World Series is the College World Series at
   Charles Schwab Field, Omaha; softball's is the Women's College World Series
   at Devon Park, Oklahoma City.
 - A conference of `confHomeAwayMax` (5) or fewer teams plays each rival

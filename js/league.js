@@ -1,15 +1,15 @@
 // League (dynasty) lifecycle: creating the league, saving results,
 // simulating, adding teams and conferences, and rolling into new seasons.
 
-import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261113225436';
-import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261113225436';
-import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261113225436';
-import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261113225436';
-import { generatePoll, releaseDuePolls } from './polls.js?v=20261113225436';
-import { replayRatings, ensureBase } from './ratings.js?v=20261113225436';
-import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261113225436';
-import { isFinal, records, INDEPENDENT } from './standings.js?v=20261113225436';
-import { rng, normal, clamp, hashStr } from './util.js?v=20261113225436';
+import { DEFAULT_LOGOS, AAU_LOGO_SET } from './logo-import.js?v=20261116184335';
+import { START_YEAR, CONFERENCES, CONF_LOGO_LINKS, COACHES, SIDES, sideOf, seedTeams, makeTeam, fillSite } from './data.js?v=20261116184335';
+import { generateSchedule, blankGame, DAY_ORDER, DEFAULT_REG_WEEKS, confWeeksFor, confRounds, confSeriesCounts } from './schedule.js?v=20261116184335';
+import { simulateGame, estimateHitsErrors, gameRules } from './sim.js?v=20261116184335';
+import { generatePoll, releaseDuePolls } from './polls.js?v=20261116184335';
+import { replayRatings, ensureBase } from './ratings.js?v=20261116184335';
+import { progress, lockField, postWeeks, allEvents, regWeeksOf, DEFAULT_NCAA, pickConfHosts, postseasonFinish, citySiteNames, wsTeams } from './postseason.js?v=20261116184335';
+import { isFinal, records, INDEPENDENT } from './standings.js?v=20261116184335';
+import { rng, normal, clamp, hashStr } from './util.js?v=20261116184335';
 
 export const SCHEMA_VERSION = 4;
 
@@ -23,7 +23,7 @@ export const SCHEMA_VERSION = 4;
 // Wednesday, never a doubleheader), the College World Series.
 const SIDE_SETTINGS = {
   softball: { innings: 7, runRule: true, tiebreaker: true, mcwsName: "Women's College World Series", mcwsVenue: 'Devon Park', mcwsCity: 'Oklahoma City, Okla.', regWeeks: 13, midweek: 'mixed', midweekFreq: 'half', tourneyWeeks: 3, tourneyShare: 1.5, nonConfSeriesGames: 3, midweekStart: 4, confHomeAwayMax: 5 },
-  baseball: { innings: 9, runRule: true, runRuleRuns: 10, runRuleAfter: 7, tiebreaker: false, mcwsName: 'College World Series', mcwsVenue: 'Charles Schwab Field', mcwsCity: 'Omaha, Neb.', regWeeks: 13, midweek: 'mostly-single', midweekFreq: 'most', tourneyWeeks: 2, tourneyShare: 0.35, nonConfSeriesGames: 4, midweekStart: 2, confHomeAwayMax: 5 },
+  baseball: { innings: 9, runRule: true, runRuleRuns: 10, runRuleAfter: 7, tiebreaker: false, mcwsName: 'College World Series', mcwsVenue: 'Charles Schwab Field', mcwsCity: 'Omaha, Neb.', startWeeksLater: 2, regWeeks: 13, midweek: 'mostly-single', midweekFreq: 'most', tourneyWeeks: 2, tourneyShare: 0.35, nonConfSeriesGames: 4, midweekStart: 2, confHomeAwayMax: 5 },
 };
 function baseSettings(side = 'softball') {
   return {
@@ -61,7 +61,7 @@ export function newLeague({ side = 'softball', name = SIDES[side === 'baseball' 
     schema: SCHEMA_VERSION, name, currentYear: year,
     conferences: JSON.parse(JSON.stringify(conferences)),
     coaches: {}, nextCoachId: 1,
-    seasons: { [year]: season }, side, indexVersion: 1, logoSet: AAU_LOGO_SET, midweekMost: true, ncSeriesVersion: 2, homeAwayVersion: 1,
+    seasons: { [year]: season }, side, indexVersion: 1, logoSet: AAU_LOGO_SET, midweekMost: true, ncSeriesVersion: 2, homeAwayVersion: 1, startVersion: 1,
   };
   ensureIndependent(league);
   for (const t of Object.values(teams)) { t.coachId = t.coach ? newCoach(league, t.coach) : null; delete t.coach; }
@@ -585,6 +585,12 @@ export function migrateLeague(league) {
       if (small && !se.games.some(g => g.type === 'regular' && isFinal(g)) && !league.draft) rebuildSchedule(se, league.seasons[se.year - 1] || null);
     }
     league.homeAwayVersion = 1; league.migrated = true;
+  }
+  // Baseball opens two weeks after softball (the owner's rule, Nov. 2026):
+  // every baseball season's dates move two weeks later; softball's stay.
+  if ((league.startVersion || 0) < 1) {
+    if (league.side === 'baseball') for (const se of Object.values(league.seasons || {})) if (se?.settings) se.settings.startWeeksLater ??= 2;
+    league.startVersion = 1; league.migrated = true;
   }
   // Conferences still on a drawn logo the owner has since replaced with a
   // link (CONF_LOGO_LINKS) take the link; logos set by hand stay.
