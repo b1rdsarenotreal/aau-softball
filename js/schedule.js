@@ -20,9 +20,10 @@
 // teams that played fewer weekend games getting a few more so season totals
 // stay close together.
 
-import { isIndependent } from './standings.js?v=20261117010411';
-import { cityPoint, miles } from './geo.js?v=20261117010411';
-import { rng, shuffle, hashStr } from './util.js?v=20261117010411';
+import { isIndependent } from './standings.js?v=20261117182452';
+import { cityPoint, miles } from './geo.js?v=20261117182452';
+import { rng, shuffle, hashStr } from './util.js?v=20261117182452';
+import { spreadConfHomes } from './homeaway.js?v=20261117182452';
 
 export const DEFAULT_REG_WEEKS = 12;
 export const DEFAULT_MIDWEEK_START = 4;
@@ -145,6 +146,46 @@ export function confRounds(list, maxWeeks, r) {
   throw new Error(`Couldn't give every team in a ${list.length}-team conference the same number of conference series.`);
 }
 
+// A conference that meets once a year swaps every host from last year, so
+// its home and away weeks are set before the rounds are drawn. Draw the
+// round robin a number of times, in shuffled orders, and keep the one where
+// the fewest teams would play three straight weekends away or four at home
+// (the owner's rule, Nov. 2026); `js/homeaway.js` then fixes what it can.
+function swapFriendlyRounds(list, draw, lastHostOf, r) {
+  const hostOf = (a, b) => { const h = lastHostOf(a, b); return h === a ? b : h === b ? a : null; };
+  const bad = rounds => {
+    let c = 0;
+    for (const t of list) {
+      let a = 0, h = 0;
+      for (const pairs of rounds) {
+        const p = pairs.find(([x, y]) => x && y && (x === t || y === t));
+        if (!p) { a = 0; h = 0; continue; }
+        // A pair that didn't meet last year can go either way: count it as
+        // whichever ends the longer run.
+        const host = hostOf(p[0], p[1]);
+        if (host ? host === t : a >= h) { h++; a = 0; } else { a++; h = 0; }
+        if (a > 2 || h > 3) c++;
+      }
+    }
+    return c;
+  };
+  let best = draw(), bc = bad(best);
+  for (let k = 0; k < 40 && bc > 0; k++) {
+    // A fresh draw, then the order of its rounds improved two at a time.
+    const cand = shuffle(draw(), r);
+    let c = bad(cand);
+    for (let step = 0; step < 200 && c > 0; step++) {
+      const i = Math.floor(r() * cand.length), j = Math.floor(r() * cand.length);
+      if (i === j) continue;
+      [cand[i], cand[j]] = [cand[j], cand[i]];
+      const c2 = bad(cand);
+      if (c2 <= c) c = c2; else [cand[i], cand[j]] = [cand[j], cand[i]];
+    }
+    if (c < bc) { best = cand; bc = c; }
+  }
+  return best;
+}
+
 // Circle-method round robin. Returns rounds of [a, b] pairs (null = bye).
 export function roundRobin(teams, r) {
   const list = shuffle(teams, r);
@@ -237,7 +278,26 @@ const key = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 // Conference rivals; independents are nobody's rivals.
 const rival = (teams, a, b) => teams[a].conference === teams[b].conference && !isIndependent(teams[a].conference);
 
+// The season's schedule. Once it's drawn, conference hosts (and, where a
+// week allows, the order of conference weeks) are set so no team plays more
+// than two conference weekends in a row away, or three at home (the owner's
+// rule, Nov. 2026; `js/homeaway.js`). Travel-partner conferences are already
+// built that way.
 export function generateSchedule(season, seed = hashStr(String(season.year)), prev = null) {
+  const games = drawSchedule(season, seed, prev);
+  const last = new Map();
+  for (const g of prev?.games || []) if (g.type === 'regular' && g.confGame) last.set(key(g.home, g.away), g.home); // as the draw reads it: the last meeting's host
+  const sorted = games.every((g, i) => !i || games[i - 1].week <= g.week);
+  spreadConfHomes(games, season.teams, rng((seed ^ 0x5bd1e995) >>> 0), {
+    skip: c => (season.partnerConfs || []).includes(c),
+    lastHost: (a, b) => { const h = last.get(key(a, b)); return h && h !== 'both' ? h : null; },
+    keepSwaps: true,
+  });
+  if (sorted) games.sort((a, b) => a.week - b.week);
+  return games;
+}
+
+function drawSchedule(season, seed, prev) {
   const r = rng(seed);
   const teams = season.teams;
   const names = Object.keys(teams);
@@ -306,7 +366,7 @@ export function generateSchedule(season, seed = hashStr(String(season.year)), pr
       const once = roundRobin(list, r);
       rounds = [...once, ...once].slice(0, Math.max(1, REG - 2));
       legs = rounds.map((_, i) => (i < once.length ? 1 : 2));
-    } else rounds = confRounds(list, confWeeks, r);
+    } else rounds = swapFriendlyRounds(list, () => confRounds(list, confWeeks, r), (a, b) => lastHost.get(key(a, b)), r);
     const first = REG - rounds.length + 1;
     rounds.forEach((pairs, i) => { (weekPairs[first + i] ||= []).push(...pairs.filter(([a, b]) => a && b).map(p => [...p, conf, legs?.[i] || 0])); });
   }
