@@ -1,4 +1,4 @@
-import { CONF_LOGO_LINKS } from './data.js?v=20261122200830';
+import { CONF_LOGO_LINKS } from './data.js?v=20261122203820';
 
 // Every AAU member school, for the "AAU school" pick on the Add team form:
 // abbreviation, mascot, colors, city and the conference it plays in in the
@@ -11,8 +11,9 @@ import { CONF_LOGO_LINKS } from './data.js?v=20261122200830';
 // State, BYU, Utah State, Washington State; head coaches and home venues
 // are added by hand) and the crop after it (`crop: 4`, Nov. 2026: the
 // Rocky West Conference's eleven, the Horizon Valley Conference's ten and
-// the Colonial 10's nine, listed in their conferences to be added when the
-// owner wants them; ESPN logos, home venues for the sports each one plays).
+// the Colonial 10's nine, plus Boston College, suggested for the Metro;
+// listed in their conferences to be added when the owner wants them; ESPN
+// logos, home venues for the sports each one plays).
 // Schools that leave the AAU (McGill and Toronto after 2031-32) stay
 // listed so they can be added back. The home venue and ratings are the
 // sport's own, so they're not here.
@@ -21,6 +22,7 @@ export const AAU_SCHOOLS = {
   "Arizona State": { abbr: "ASU", mascot: "Sun Devils", color: '#8C1D40', altColor: '#FFC627', city: "Tempe, Ariz.", conference: "Pacific-10 Conference" },
   "Arkansas": { abbr: "ARK", mascot: "Razorbacks", color: '#9D2235', altColor: '#FFFFFF', city: "Fayetteville, Ark.", conference: "Southwest Conference", crop: 3 },
   "Baylor": { abbr: "BAY", mascot: "Bears", color: '#154734', altColor: '#FFB81C', city: "Waco, Texas", conference: "Southwest Conference", crop: 3 },
+  "Boston College": { abbr: "BC", mascot: "Eagles", color: '#98002E', altColor: '#BC9B6A', city: "Chestnut Hill, Mass.", conference: "Metro Conference", crop: 4 },
   "Boston University": { abbr: "BU", mascot: "Terriers", color: '#CC0000', altColor: '#FFFFFF', city: "Boston, Mass.", conference: "Metro Conference" },
   "Brandeis": { abbr: "BRAN", mascot: "Judges", color: '#003478', altColor: '#FFFFFF', city: "Waltham, Mass.", conference: "University Athletic Association" },
   "Brown": { abbr: "BRWN", mascot: "Bears", color: '#4E3629', altColor: '#C00404', city: "Providence, R.I.", conference: "Ivy League" },
@@ -191,6 +193,7 @@ export const AAU_PROGRAMS = {
     "Syracuse": { stadium: "Skytop Softball Stadium", coach: "Shannon Doepking" },
     "UConn": { stadium: "Connecticut Softball Stadium", coach: "Laura Valentino" },
     // The owner's fourth crop (Nov. 2026): home venue only; coaches are added by hand.
+    "Boston College": { stadium: "Harrington Athletics Village" },
     "Colorado State": { stadium: "Ram Field" },
     "Montana": { stadium: "Grizzly Softball Field" },
     "North Dakota": { stadium: "Apollo Sports Complex" },
@@ -235,6 +238,7 @@ export const AAU_PROGRAMS = {
     "Nebraska": { stadium: "Hawks Field at Haymarket Park", coach: "Will Bolt" },
     "UConn": { stadium: "Elliot Ballpark", coach: "Jim Penders" },
     // The owner's fourth crop (Nov. 2026): home venue only; coaches are added by hand.
+    "Boston College": { stadium: "Eddie Pellagrini Diamond" },
     "North Dakota State": { stadium: "Newman Outdoor Field" },
     "New Mexico": { stadium: "Santa Ana Star Field" },
     "New Mexico State": { stadium: "Presley Askew Field" },
